@@ -1,0 +1,221 @@
+import { NextFunction, Request, Response, Router } from 'express';
+import { z } from 'zod';
+import { pool } from '../db/index.js';
+import { comparePassword, hashPassword, signToken, verifyToken } from '../util/auth.js';
+
+const router = Router();
+
+const registerSchema = z.object({
+  fullName: z.string().trim().min(2, 'Numele este prea scurt'),
+  email: z.string().trim().email('Email invalid'),
+  password: z.string().min(6, 'Parola trebuie să aibă cel puțin 6 caractere'),
+  role: z.enum(['seller', 'distributor']),
+  phone: z.string().trim().optional().or(z.literal('')),
+  region: z.string().trim().optional().or(z.literal('')),
+});
+
+const loginSchema = z.object({
+  email: z.string().trim().email('Email invalid'),
+  password: z.string().min(6, 'Parola este obligatorie'),
+});
+
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Token de autentificare lipsă.' });
+  }
+
+  try {
+    const token = authHeader.slice(7);
+    const payload = verifyToken(token);
+
+    req.user = {
+      sub: payload.sub,
+      email: payload.email,
+      role: payload.role,
+    };
+
+    return next();
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    return res.status(401).json({ message: 'Token invalid sau expirat.' });
+  }
+};
+
+export const requireRole = (roles: Array<'seller' | 'distributor' | 'admin'>) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Autentificare necesară.' });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Nu ai permisiunea necesară.' });
+    }
+
+    return next();
+  };
+};
+
+router.post('/register', async (req, res) => {
+  const result = registerSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      message: 'Datele introduse nu sunt valide.',
+      errors: result.error.flatten().fieldErrors,
+    });
+  }
+
+  const { fullName, email, password, role, phone, region } = result.data;
+  const normalizedEmail = email.toLowerCase();
+
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      return res.status(409).json({ message: 'Există deja un utilizator cu acest email.' });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const userResult = await pool.query(
+      `
+        INSERT INTO users (full_name, email, password_hash, role, phone, region, status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+        RETURNING id, full_name, email, role, status, phone, region, created_at
+      `,
+      [fullName, normalizedEmail, passwordHash, role, phone || null, region || null],
+    );
+
+    const user = userResult.rows[0];
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        region: user.region,
+        createdAt: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    return res.status(500).json({ message: 'Eroare la crearea contului.' });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  const result = loginSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      message: 'Datele de autentificare nu sunt valide.',
+      errors: result.error.flatten().fieldErrors,
+    });
+  }
+
+  const { email, password } = result.data;
+
+  try {
+    const userResult = await pool.query(
+      `
+        SELECT id, full_name, email, password_hash, role, status, phone, region, created_at
+        FROM users
+        WHERE email = $1
+      `,
+      [email.toLowerCase()],
+    );
+
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(401).json({ message: 'Email sau parolă incorecte.' });
+    }
+
+    const isValidPassword = await comparePassword(password, user.password_hash);
+
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Email sau parolă incorecte.' });
+    }
+
+    if (user.status !== 'approved') {
+      return res.status(403).json({
+        message: 'Contul nu este încă aprobat de administrator.',
+      });
+    }
+
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        region: user.region,
+        createdAt: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ message: 'Eroare la autentificare.' });
+  }
+});
+
+router.get('/me', requireAuth, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Autentificare necesară.' });
+  }
+
+  try {
+    const userResult = await pool.query(
+      `
+        SELECT id, full_name, email, role, status, phone, region, created_at
+        FROM users
+        WHERE id = $1
+      `,
+      [req.user.sub],
+    );
+
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utilizatorul nu a fost găsit.' });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        region: user.region,
+        createdAt: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    return res.status(500).json({ message: 'Eroare la încărcarea utilizatorului.' });
+  }
+});
+
+export default router;

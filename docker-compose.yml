@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agro_b2b
+      POSTGRES_USER: agro_user
+      POSTGRES_PASSWORD: agro_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
