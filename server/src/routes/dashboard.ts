@@ -7,7 +7,7 @@ const router = Router();
 router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (req, res) => {
   try {
     if (req.user?.role === 'seller') {
-      const [statsResult, listingsResult] = await Promise.all([
+      const [statsResult, listingsResult, ordersResult] = await Promise.all([
         pool.query(
           `
             SELECT
@@ -28,17 +28,28 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
                   AND o.status = 'pending'
               ) AS pending_orders
             FROM product_listings
-            WHERE seller_id = $1
+            WHERE seller_id = $1 AND status <> 'archived'
           `,
           [req.user.sub],
         ),
         pool.query(
           `
-            SELECT id, product_name, variety, quantity_kg, price_per_kg, status, updated_at
+            SELECT id, product_name, variety, quantity_kg, price_per_kg, unit_measure, region, harvest_date, delivery_terms, status, updated_at
             FROM product_listings
-            WHERE seller_id = $1
+            WHERE seller_id = $1 AND status <> 'archived'
             ORDER BY created_at DESC
-            LIMIT 10
+          `,
+          [req.user.sub],
+        ),
+        pool.query(
+          `
+            SELECT o.id, o.ordered_quantity_kg, o.unit_price, o.total_amount, o.status, o.notes, o.created_at,
+                   pl.product_name, pl.variety, u.full_name AS distributor_name, u.email AS distributor_email, u.phone AS distributor_phone
+            FROM orders o
+            JOIN product_listings pl ON pl.id = o.listing_id
+            JOIN users u ON u.id = o.distributor_id
+            WHERE pl.seller_id = $1
+            ORDER BY o.created_at DESC
           `,
           [req.user.sub],
         ),
@@ -60,8 +71,26 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
           variety: listing.variety,
           quantityKg: Number(listing.quantity_kg),
           pricePerKg: Number(listing.price_per_kg),
+          unitMeasure: listing.unit_measure,
+          region: listing.region,
+          harvestDate: listing.harvest_date,
+          deliveryTerms: listing.delivery_terms,
           status: listing.status,
           updatedAt: listing.updated_at,
+        })),
+        receivedOrders: ordersResult.rows.map((order) => ({
+          id: order.id,
+          productName: order.product_name,
+          variety: order.variety,
+          distributorName: order.distributor_name,
+          distributorEmail: order.distributor_email,
+          distributorPhone: order.distributor_phone,
+          quantityKg: Number(order.ordered_quantity_kg),
+          unitPrice: Number(order.unit_price),
+          totalAmount: Number(order.total_amount),
+          status: order.status,
+          notes: order.notes,
+          createdAt: order.created_at,
         })),
       });
     }
@@ -80,7 +109,7 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
       ),
       pool.query(
         `
-          SELECT o.id, o.ordered_quantity_kg, o.total_amount, o.status, o.created_at,
+          SELECT o.id, o.ordered_quantity_kg, o.total_amount, o.status, o.created_at, pl.quantity_kg AS available_quantity_kg,
                  pl.product_name, pl.variety, u.full_name AS seller_name
           FROM orders o
           JOIN product_listings pl ON pl.id = o.listing_id
@@ -109,6 +138,7 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
         variety: order.variety,
         sellerName: order.seller_name,
         quantityKg: Number(order.ordered_quantity_kg),
+        availableQuantityKg: Number(order.available_quantity_kg),
         totalAmount: Number(order.total_amount),
         status: order.status,
         createdAt: order.created_at,

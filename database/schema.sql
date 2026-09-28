@@ -16,6 +16,7 @@ CREATE TABLE users (
   status user_status NOT NULL DEFAULT 'pending',
   phone VARCHAR(30),
   region VARCHAR(100),
+  email_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -25,12 +26,13 @@ CREATE TABLE product_listings (
   seller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_name VARCHAR(150) NOT NULL,
   variety VARCHAR(150) NOT NULL,
-  quantity_kg NUMERIC(10,2) NOT NULL CHECK (quantity_kg > 0),
+  quantity_kg NUMERIC(10,2) NOT NULL CHECK (quantity_kg >= 0),
   price_per_kg NUMERIC(10,2) NOT NULL CHECK (price_per_kg >= 0),
   unit_measure VARCHAR(20) NOT NULL DEFAULT 'kg',
   region VARCHAR(100) NOT NULL,
   harvest_date DATE,
   delivery_terms VARCHAR(255),
+  image_url VARCHAR(500),
   status listing_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -76,6 +78,16 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE email_verification_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0 AND attempts <= 5),
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_users_role_status ON users(role, status);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_listings_seller_id ON product_listings(seller_id);
@@ -84,6 +96,7 @@ CREATE INDEX idx_orders_distributor_id ON orders(distributor_id);
 CREATE INDEX idx_orders_listing_id ON orders(listing_id);
 CREATE INDEX idx_messages_order_id ON order_messages(order_id);
 CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX idx_email_verification_tokens_user ON email_verification_tokens(user_id);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$

@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response, Router } from 'express';
+import { createHash, randomInt } from 'node:crypto';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { comparePassword, hashPassword, signToken, verifyToken } from '../util/auth.js';
+import { sendVerificationCode } from '../util/email.js';
 
 const router = Router();
 
@@ -18,6 +20,26 @@ const loginSchema = z.object({
   email: z.string().trim().email('Email invalid'),
   password: z.string().min(6, 'Parola este obligatorie'),
 });
+
+const verificationSchema = z.object({
+  email: z.string().trim().email('Email invalid'),
+  code: z.string().trim().regex(/^\d{6}$/, 'Codul trebuie să aibă 6 cifre'),
+});
+
+const hashVerificationCode = (code: string) => createHash('sha256').update(code).digest('hex');
+
+const issueVerificationCode = async (userId: string, email: string) => {
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  await pool.query(
+    `UPDATE email_verification_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`,
+    [userId],
+  );
+  await pool.query(
+    `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '15 minutes')`,
+    [userId, hashVerificationCode(code)],
+  );
+  await sendVerificationCode(email, code);
+};
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -81,22 +103,18 @@ router.post('/register', async (req, res) => {
 
     const userResult = await pool.query(
       `
-        INSERT INTO users (full_name, email, password_hash, role, phone, region, status)
-        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-        RETURNING id, full_name, email, role, status, phone, region, created_at
+        INSERT INTO users (full_name, email, password_hash, role, phone, region, status, email_verified_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', NULL)
+        RETURNING id, full_name, email, role, status, phone, region, email_verified_at, created_at
       `,
       [fullName, normalizedEmail, passwordHash, role, phone || null, region || null],
     );
 
     const user = userResult.rows[0];
-    const token = signToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    await issueVerificationCode(user.id, user.email);
 
     return res.status(201).json({
-      token,
+      verificationRequired: true,
       user: {
         id: user.id,
         fullName: user.full_name,
@@ -105,6 +123,7 @@ router.post('/register', async (req, res) => {
         status: user.status,
         phone: user.phone,
         region: user.region,
+        emailVerifiedAt: user.email_verified_at,
         createdAt: user.created_at,
       },
     });
@@ -129,7 +148,7 @@ router.post('/login', async (req, res) => {
   try {
     const userResult = await pool.query(
       `
-        SELECT id, full_name, email, password_hash, role, status, phone, region, created_at
+        SELECT id, full_name, email, password_hash, role, status, phone, region, email_verified_at, created_at
         FROM users
         WHERE email = $1
       `,
@@ -146,6 +165,10 @@ router.post('/login', async (req, res) => {
 
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Email sau parolă incorecte.' });
+    }
+
+    if (!user.email_verified_at) {
+      return res.status(403).json({ message: 'Verifică mai întâi adresa de email.' });
     }
 
     if (user.status !== 'approved') {
@@ -170,12 +193,62 @@ router.post('/login', async (req, res) => {
         status: user.status,
         phone: user.phone,
         region: user.region,
+        emailVerifiedAt: user.email_verified_at,
         createdAt: user.created_at,
       },
     });
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Eroare la autentificare.' });
+  }
+});
+
+router.post('/verify-email', async (req, res) => {
+  const result = verificationSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({ message: 'Email sau cod invalid.' });
+  }
+
+  const normalizedEmail = result.data.email.toLowerCase();
+  const tokenHash = hashVerificationCode(result.data.code);
+  const client = await pool.connect();
+
+  try {
+    const tokenResult = await client.query(
+      `
+        SELECT evt.id, evt.user_id
+        FROM email_verification_tokens evt
+        JOIN users u ON u.id = evt.user_id
+        WHERE u.email = $1
+          AND evt.token_hash = $2
+          AND evt.used_at IS NULL
+          AND evt.expires_at > NOW()
+          AND evt.attempts < 5
+      `,
+      [normalizedEmail, tokenHash],
+    );
+
+    if (tokenResult.rowCount === 0) {
+      await client.query(
+        `UPDATE email_verification_tokens evt SET attempts = attempts + 1 FROM users u WHERE evt.user_id = u.id AND u.email = $1 AND evt.used_at IS NULL AND evt.expires_at > NOW()`,
+        [normalizedEmail],
+      );
+      return res.status(400).json({ message: 'Cod invalid, expirat sau prea multe încercări.' });
+    }
+
+    const token = tokenResult.rows[0];
+    await client.query('BEGIN');
+    await client.query('UPDATE users SET email_verified_at = NOW() WHERE id = $1', [token.user_id]);
+    await client.query('UPDATE email_verification_tokens SET used_at = NOW() WHERE id = $1', [token.id]);
+    await client.query('COMMIT');
+    return res.status(200).json({ message: 'Email verificat. Poți continua autentificarea.' });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    console.error('Verify email error:', error);
+    return res.status(500).json({ message: 'Eroare la verificarea emailului.' });
+  } finally {
+    client.release();
   }
 });
 

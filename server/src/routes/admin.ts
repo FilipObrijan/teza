@@ -106,7 +106,7 @@ router.get('/listings', async (req, res) => {
     const result = await pool.query(
       `
         SELECT pl.id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg,
-               pl.region, pl.harvest_date, pl.delivery_terms, pl.status, pl.created_at,
+               pl.region, pl.harvest_date, pl.delivery_terms, pl.image_url, pl.status, pl.created_at,
                u.full_name AS seller_name, u.email AS seller_email
         FROM product_listings pl
         JOIN users u ON u.id = pl.seller_id
@@ -126,6 +126,7 @@ router.get('/listings', async (req, res) => {
         region: listing.region,
         harvestDate: listing.harvest_date,
         deliveryTerms: listing.delivery_terms,
+        imageUrl: listing.image_url,
         status: listing.status,
         sellerName: listing.seller_name,
         sellerEmail: listing.seller_email,
