@@ -1,6 +1,9 @@
 {
   "name": "agro-b2b-platform",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "client",
     "server"

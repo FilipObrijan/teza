@@ -24,14 +24,10 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      - key: SMTP_HOST
+      # Emailurile de verificare se trimit prin API-ul Brevo (Render free blochează porturile SMTP).
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
+      # Adresa de expeditor, verificată în Brevo.
       - key: SMTP_FROM
         sync: false
 

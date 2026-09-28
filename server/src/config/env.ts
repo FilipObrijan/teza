@@ -30,4 +30,5 @@ export const env = {
   smtpUser: process.env.SMTP_USER ?? '',
   smtpPassword: process.env.SMTP_PASSWORD ?? '',
   smtpFrom: process.env.SMTP_FROM ?? '',
+  brevoApiKey: process.env.BREVO_API_KEY ?? '',
 };

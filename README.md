@@ -38,5 +38,5 @@ Frontend-ul și backend-ul sunt găzduite separat, deoarece GitHub Pages serveș
 
 **Backend + PostgreSQL: Render**
 1. Render Dashboard → New → Blueprint → repo-ul `FilipObrijan/teza` (folosește [render.yaml](render.yaml)).
-2. Completează `ADMIN_EMAIL`, `ADMIN_PASSWORD` și, pentru emailurile de verificare, variabilele `SMTP_*`.
+2. Completează `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `BREVO_API_KEY` și `SMTP_FROM` (adresa de expeditor verificată în Brevo).
 3. Copiază URL-ul serviciului `agrohub-api` în variabila `VITE_API_URL` de pe GitHub și rulează din nou workflow-ul.
