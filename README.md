@@ -29,14 +29,14 @@ La prima pornire serverul aplică automat `database/schema.sql` dacă baza de da
 
 ## Deploy
 
-Frontend-ul și backend-ul sunt găzduite separat, deoarece GitHub Pages servește doar fișiere statice.
+Toate serviciile au planuri gratuite care permit uz comercial. Fiecare push pe `main` actualizează automat site-ul și serverul.
 
-**Frontend: GitHub Pages** (https://filipobrijan.github.io/teza/)
-1. GitHub → Settings → Pages → Source: **GitHub Actions**.
-2. GitHub → Settings → Secrets and variables → Actions → Variables: adaugă `VITE_API_URL` cu adresa API-ului (ex. `https://agrohub-api.onrender.com`).
-3. Fiecare push pe `main` rulează [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml).
+| Parte | Serviciu | Configurare |
+|---|---|---|
+| Site (frontend) | Cloudflare Pages | build `npm run build --workspace client`, output `client/dist`, variabila `VITE_API_URL` |
+| Server (API) | Render | [render.yaml](render.yaml) |
+| Bază de date | Neon (PostgreSQL) | `DATABASE_URL` pe Render |
+| Emailuri | Brevo | `BREVO_API_KEY` și `SMTP_FROM` pe Render |
+| Menținere activă | UptimeRobot | ping la `/api/health` la fiecare 5 minute |
 
-**Backend + PostgreSQL: Render**
-1. Render Dashboard → New → Blueprint → repo-ul `FilipObrijan/teza` (folosește [render.yaml](render.yaml)).
-2. Completează `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `BREVO_API_KEY` și `SMTP_FROM` (adresa de expeditor verificată în Brevo).
-3. Copiază URL-ul serviciului `agrohub-api` în variabila `VITE_API_URL` de pe GitHub și rulează din nou workflow-ul.
+Schimbările de structură a bazei de date se adaugă în [server/src/db/migrate.ts](server/src/db/migrate.ts), cu instrucțiuni idempotente (`IF NOT EXISTS`). `database/schema.sql` rulează doar pe o bază de date goală.

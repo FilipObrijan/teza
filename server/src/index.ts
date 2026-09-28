@@ -13,6 +13,9 @@ import ordersRouter from './routes/orders.js';
 
 const app = express();
 
+// Render pune un proxy în fața serverului; fără asta limitarea încercărilor ar vedea toți utilizatorii ca pe o singură adresă IP.
+app.set('trust proxy', 1);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));

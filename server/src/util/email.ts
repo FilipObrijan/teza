@@ -47,6 +47,14 @@ export const sendEmail = async ({ to, subject, text, html }: { to: string; subje
   await transporter.sendMail({ from: env.smtpFrom, to, subject, text, html });
 };
 
+export const sendPasswordResetCode = (email: string, code: string) =>
+  sendEmail({
+    to: email,
+    subject: 'Resetarea parolei AgroHub',
+    text: `Codul pentru resetarea parolei este ${code}. Expiră în 15 minute. Dacă nu ai cerut resetarea, ignoră acest email.`,
+    html: `<p>Codul pentru resetarea parolei AgroHub este:</p><p style="font-size:24px;font-weight:700;letter-spacing:4px">${code}</p><p>Codul expiră în 15 minute. Dacă nu ai cerut resetarea, ignoră acest email.</p>`,
+  });
+
 export const sendVerificationCode = (email: string, code: string) =>
   sendEmail({
     to: email,

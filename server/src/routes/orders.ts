@@ -358,21 +358,27 @@ router.delete('/:id', requireAuth, requireRole(['seller', 'distributor']), async
   }
 
   try {
-    const result = await pool.query(
+    const orderResult = await pool.query(
       `
-        DELETE FROM orders o
-        USING product_listings pl
-        WHERE o.id = $1
-          AND o.listing_id = pl.id
-          AND (o.distributor_id = $2 OR pl.seller_id = $2)
-        RETURNING o.id
+        SELECT o.status
+        FROM orders o
+        JOIN product_listings pl ON pl.id = o.listing_id
+        WHERE o.id = $1 AND (o.distributor_id = $2 OR pl.seller_id = $2)
       `,
       [idResult.data, req.user?.sub],
     );
+    const order = orderResult.rows[0];
 
-    if (result.rowCount === 0) {
+    if (!order) {
       return res.status(404).json({ message: 'Comanda nu a fost găsită sau nu îți aparține.' });
     }
+
+    // O comandă confirmată a scăzut deja stocul; ștergerea ei ar lăsa stocul greșit și ar pierde istoricul.
+    if (order.status === 'confirmed' || order.status === 'completed') {
+      return res.status(400).json({ message: 'O comandă acceptată nu poate fi ștearsă. Anulează-o mai întâi.' });
+    }
+
+    await pool.query(`DELETE FROM orders WHERE id = $1 AND status NOT IN ('confirmed', 'completed')`, [idResult.data]);
 
     return res.status(200).json({ message: 'Comanda a fost ștearsă din istoric.' });
   } catch (error) {

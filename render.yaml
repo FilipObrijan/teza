@@ -1,5 +1,6 @@
-# Blueprint Render pentru API + PostgreSQL.
+# Blueprint Render pentru API.
 # Render Dashboard → New → Blueprint → alege repo-ul FilipObrijan/teza.
+# Baza de date e pe Neon (gratuit, nu expiră); site-ul e pe Cloudflare Pages.
 services:
   - type: web
     name: agrohub-api
@@ -12,27 +13,24 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Connection string-ul de la Neon (Dashboard → Connect).
       - key: DATABASE_URL
-        fromDatabase:
-          name: agrohub-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
+      # Adresele site-ului, separate prin virgulă, ex. "https://agrohub.pages.dev,https://agrohub.md".
       - key: CORS_ORIGIN
-        value: https://filipobrijan.github.io
+        sync: false
+      # Adresa site-ului folosită în linkurile din emailuri, ex. "https://agrohub.pages.dev/".
+      - key: SITE_URL
+        sync: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      # Emailurile de verificare se trimit prin API-ul Brevo (Render free blochează porturile SMTP).
+      # Emailurile se trimit prin API-ul Brevo (Render free blochează porturile SMTP).
       - key: BREVO_API_KEY
         sync: false
       # Adresa de expeditor, verificată în Brevo.
       - key: SMTP_FROM
         sync: false
-
-databases:
-  - name: agrohub-db
-    plan: free
-    databaseName: agro_b2b
-    user: agro_user

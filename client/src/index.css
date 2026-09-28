@@ -195,6 +195,8 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
 .login-modal label { display: block; margin-top: 17px; color: #5e675f; font-size: .75rem; font-weight: 700; }
 .login-modal input, .login-modal select { display: block; width: 100%; margin-top: 7px; padding: 12px; border: 1px solid #d7d4c8; outline-color: #d85f36; background: #fff; }
 .auth-feedback { margin: 16px 0 0; font-size: .78rem; line-height: 1.45; }
+.auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.text-button { padding: 0; border: 0; background: transparent; color: #d85f36; font-size: .75rem; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .auth-feedback.error { color: #b54232; }
 .auth-feedback.success { color: #39704a; }
 .primary-action { width: 100%; margin-top: 24px; padding: 13px; }

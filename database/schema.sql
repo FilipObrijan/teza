@@ -82,7 +82,7 @@ CREATE TABLE notifications (
 CREATE TABLE email_verification_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  token_hash VARCHAR(64) NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0 AND attempts <= 5),
   used_at TIMESTAMPTZ,

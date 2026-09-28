@@ -19,6 +19,22 @@ export async function migrate() {
   // Imaginile se păstrează în baza de date, ca să supraviețuiască repornirilor pe hosting fără disc persistent.
   await pool.query('ALTER TABLE product_listings ADD COLUMN IF NOT EXISTS image_data BYTEA');
 
+  // Codurile au doar 6 cifre, deci doi utilizatori pot primi același cod; unicitatea ar strica înregistrarea.
+  await pool.query('ALTER TABLE email_verification_tokens DROP CONSTRAINT IF EXISTS email_verification_tokens_token_hash_key');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(64) NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0 AND attempts <= 5),
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id)');
+
   if (env.adminEmail && env.adminPassword) {
     await pool.query(
       `

@@ -38,6 +38,8 @@ const orderStatusLabel = (status: string) => ({
   completed: 'Finalizată',
 }[status] ?? status);
 
+type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+
 type AuthUser = {
   id: string;
   fullName: string;
@@ -425,7 +427,7 @@ export default function App() {
   const [region, setRegion] = useState('Toate regiunile');
   const [sort, setSort] = useState('recent');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'verify'>('login');
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authForm, setAuthForm] = useState({ fullName: '', email: '', password: '', role: 'distributor', phone: '', region: '' });
   const [verificationCode, setVerificationCode] = useState('');
   const [authMessage, setAuthMessage] = useState('');
@@ -517,11 +519,29 @@ export default function App() {
   const regions = ['Toate regiunile', ...new Set(catalogListings.map((listing) => listing.region))];
   const canUseOfferActions = authUser?.role === 'admin' || authUser?.role === 'distributor';
 
-  const openAuth = (mode: 'login' | 'register' | 'verify') => {
+  const openAuth = (mode: AuthMode) => {
     setAuthMode(mode);
     setAuthMessage('');
     setAuthError('');
     setIsLoginOpen(true);
+  };
+
+  const resendVerificationCode = async () => {
+    setAuthMessage('');
+    setAuthError('');
+
+    try {
+      const response = await fetch(`${apiUrl}/resend-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authForm.email }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? 'Nu am putut trimite codul.');
+      setAuthMessage(data.message);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Nu am putut trimite codul.');
+    }
   };
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -530,12 +550,28 @@ export default function App() {
     setAuthError('');
     setIsSubmitting(true);
 
-    const endpoint = authMode === 'login' ? 'login' : authMode === 'verify' ? 'verify-email' : 'register';
+    const endpoints: Record<AuthMode, string> = {
+      login: 'login',
+      register: 'register',
+      verify: 'verify-email',
+      forgot: 'forgot-password',
+      reset: 'reset-password',
+    };
+    const endpoint = endpoints[authMode];
     const body = authMode === 'login'
       ? { email: authForm.email, password: authForm.password }
       : authMode === 'verify'
         ? { email: authForm.email, code: verificationCode }
-        : authForm;
+        : authMode === 'forgot'
+          ? { email: authForm.email }
+          : authMode === 'reset'
+            ? { email: authForm.email, code: verificationCode, password: authForm.password }
+            : authForm;
+
+    // Pe hosting gratuit serverul adoarme; prima cerere poate dura până la un minut.
+    const slowServerTimer = window.setTimeout(() => {
+      setAuthMessage('Serverul pornește, poate dura până la un minut. Te rugăm să aștepți...');
+    }, 4000);
 
     try {
       const response = await fetch(`${apiUrl}/${endpoint}`, {
@@ -543,7 +579,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      window.clearTimeout(slowServerTimer);
+      setAuthMessage('');
 
       if (!response.ok) {
         throw new Error(data.message ?? 'A apărut o eroare.');
@@ -557,13 +596,28 @@ export default function App() {
         setAuthMessage(data.message ?? 'Email verificat. Acum te poți autentifica.');
         setVerificationCode('');
         setAuthMode('login');
+      } else if (authMode === 'forgot') {
+        setAuthMessage(data.message);
+        setVerificationCode('');
+        setAuthForm((current) => ({ ...current, password: '' }));
+        setAuthMode('reset');
+      } else if (authMode === 'reset') {
+        setAuthMessage(data.message);
+        setVerificationCode('');
+        setAuthForm((current) => ({ ...current, password: '' }));
+        setAuthMode('login');
       } else {
         setAuthMessage('Cont creat. Verifică emailul cu codul primit, apoi așteaptă aprobarea administratorului.');
         setAuthMode('verify');
         setAuthForm((current) => ({ ...current, password: '' }));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nu am putut contacta serverul.';
+      window.clearTimeout(slowServerTimer);
+      setAuthMessage('');
+      // fetch aruncă TypeError doar când serverul nu poate fi contactat deloc.
+      const message = error instanceof TypeError
+        ? 'Nu am putut contacta serverul. Verifică conexiunea și încearcă din nou.'
+        : error instanceof Error ? error.message : 'A apărut o eroare.';
       if (authMode === 'login' && message.includes('Verifică mai întâi')) {
         setAuthMode('verify');
       }
@@ -741,12 +795,16 @@ export default function App() {
 
       {isLoginOpen && <div className="modal-backdrop" onClick={() => setIsLoginOpen(false)}><section className="login-modal" onClick={(event) => event.stopPropagation()}>
         <button className="close-button" onClick={() => setIsLoginOpen(false)} aria-label="Inchide">x</button>
-        {authMode !== 'verify' && <div className="auth-tabs"><button className={authMode === 'login' ? 'selected' : ''} onClick={() => openAuth('login')}>Autentificare</button><button className={authMode === 'register' ? 'selected' : ''} onClick={() => openAuth('register')}>Cont nou</button></div>}
+        {(authMode === 'login' || authMode === 'register') && <div className="auth-tabs"><button className={authMode === 'login' ? 'selected' : ''} onClick={() => openAuth('login')}>Autentificare</button><button className={authMode === 'register' ? 'selected' : ''} onClick={() => openAuth('register')}>Cont nou</button></div>}
         <p className="kicker">Acces platforma</p>
-        <h2>{authMode === 'login' ? 'Bine ai revenit.' : authMode === 'verify' ? 'Verifică adresa de email.' : 'Creeaza-ti contul.'}</h2>
-        <p>{authMode === 'login' ? 'Intra in cont pentru a continua.' : authMode === 'verify' ? 'Introdu codul de 6 cifre trimis la adresa ta.' : 'Alege rolul potrivit pentru activitatea ta.'}</p>
+        <h2>{{ login: 'Bine ai revenit.', register: 'Creeaza-ti contul.', verify: 'Verifică adresa de email.', forgot: 'Ai uitat parola?', reset: 'Setează o parolă nouă.' }[authMode]}</h2>
+        <p>{{ login: 'Intra in cont pentru a continua.', register: 'Alege rolul potrivit pentru activitatea ta.', verify: 'Introdu codul de 6 cifre trimis la adresa ta.', forgot: 'Introdu emailul contului și îți trimitem un cod de resetare.', reset: 'Introdu codul primit pe email și noua parolă.' }[authMode]}</p>
         <form onSubmit={handleAuthSubmit}>
-          {authMode === 'verify' ? <><label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="nume@companie.ro" /></label><label>Cod de verificare<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} placeholder="123456" /></label></> : <><>{authMode === 'register' && <label>Nume complet<input required value={authForm.fullName} onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })} placeholder="Nume si prenume" /></label>}</><label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="nume@companie.ro" /></label><label>Parola<input required minLength={6} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="Minimum 6 caractere" /></label></>}
+          {authMode === 'register' && <label>Nume complet<input required value={authForm.fullName} onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })} placeholder="Nume si prenume" /></label>}
+          <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="nume@companie.ro" /></label>
+          {(authMode === 'verify' || authMode === 'reset') && <label>{authMode === 'verify' ? 'Cod de verificare' : 'Cod de resetare'}<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} placeholder="123456" /></label>}
+          {authMode === 'login' && <label>Parola<input required type="password" autoComplete="current-password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="Parola ta" /></label>}
+          {(authMode === 'register' || authMode === 'reset') && <label>{authMode === 'reset' ? 'Parola nouă' : 'Parola'}<input required minLength={8} type="password" autoComplete="new-password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="Minimum 8 caractere" /></label>}
           {authMode === 'register' && <>
             <label>Tip cont<select value={authForm.role} onChange={(event) => setAuthForm({ ...authForm, role: event.target.value })}><option value="distributor">Distribuitor</option><option value="seller">Vanzator</option></select></label>
             <label>Telefon<input value={authForm.phone} onChange={(event) => setAuthForm({ ...authForm, phone: event.target.value })} placeholder="07xx xxx xxx" /></label>
@@ -754,8 +812,14 @@ export default function App() {
           </>}
           {authError && <p className="auth-feedback error">{authError}</p>}
           {authMessage && <p className="auth-feedback success">{authMessage}</p>}
-          <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Se proceseaza...' : authMode === 'login' ? 'Intra in cont' : authMode === 'verify' ? 'Verifică emailul' : 'Creeaza cont'}</button>
+          <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Se proceseaza...' : { login: 'Intra in cont', register: 'Creeaza cont', verify: 'Verifică emailul', forgot: 'Trimite codul', reset: 'Schimbă parola' }[authMode]}</button>
         </form>
+        <div className="auth-links">
+          {authMode === 'login' && <button type="button" className="text-button" onClick={() => openAuth('forgot')}>Ai uitat parola?</button>}
+          {authMode === 'verify' && <button type="button" className="text-button" disabled={!authForm.email} onClick={() => void resendVerificationCode()}>Retrimite codul</button>}
+          {authMode === 'reset' && <button type="button" className="text-button" onClick={() => openAuth('forgot')}>Nu ai primit codul?</button>}
+          {(authMode === 'verify' || authMode === 'forgot' || authMode === 'reset') && <button type="button" className="text-button" onClick={() => openAuth('login')}>Înapoi la autentificare</button>}
+        </div>
       </section></div>}
 
       {isAdminOpen && <div className="modal-backdrop" onClick={() => setIsAdminOpen(false)}><section className="admin-modal" onClick={(event) => event.stopPropagation()}>
