@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
+import { notifyDistributorsNewListing } from '../util/notifications.js';
 
 const router = Router();
 
@@ -148,12 +149,15 @@ router.patch('/listings/:id/status', async (req, res) => {
   }
 
   try {
+    // CTE-ul vede statusul de dinainte de UPDATE, ca să știm dacă anunțul tocmai a fost aprobat.
     const result = await pool.query(
       `
+        WITH previous AS (SELECT status FROM product_listings WHERE id = $2)
         UPDATE product_listings
         SET status = $1::listing_status
         WHERE id = $2
-        RETURNING id, product_name, variety, quantity_kg, price_per_kg, region, status
+        RETURNING id, product_name, variety, quantity_kg, price_per_kg, region, status,
+                  (SELECT status FROM previous) AS previous_status
       `,
       [statusResult.data, idResult.data],
     );
@@ -162,7 +166,13 @@ router.patch('/listings/:id/status', async (req, res) => {
       return res.status(404).json({ message: 'Anunțul nu a fost găsit.' });
     }
 
-    return res.status(200).json({ listing: result.rows[0] });
+    const { previous_status: previousStatus, ...listing } = result.rows[0];
+
+    if (previousStatus === 'pending' && listing.status === 'active') {
+      notifyDistributorsNewListing(listing.id);
+    }
+
+    return res.status(200).json({ listing });
   } catch (error) {
     console.error('Update listing status error:', error);
     return res.status(500).json({ message: 'Eroare la actualizarea anunțului.' });

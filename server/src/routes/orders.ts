@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
+import { notifyDistributorOrderStatus, notifySellerOrder } from '../util/notifications.js';
 
 const router = Router();
 
@@ -75,6 +76,7 @@ router.post('/', requireAuth, requireRole(['distributor']), async (req, res) => 
     );
 
     await client.query('COMMIT');
+    notifySellerOrder(result.rows[0].id);
     return res.status(201).json({ order: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -151,6 +153,7 @@ router.patch('/:id/status', requireAuth, requireRole(['seller']), async (req, re
     );
 
     await client.query('COMMIT');
+    notifyDistributorOrderStatus(idResult.data);
     return res.status(200).json({ order: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -243,6 +246,7 @@ router.patch('/:id', requireAuth, requireRole(['distributor']), async (req, res)
     );
 
     await client.query('COMMIT');
+    notifySellerOrder(idResult.data, { updated: true });
     return res.status(200).json({ order: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');

@@ -22,6 +22,8 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET ?? 'local-dev-secret',
   // Listă separată prin virgulă, ex. "https://filipobrijan.github.io,http://localhost:5173". Gol = orice origine.
   corsOrigins: (process.env.CORS_ORIGIN ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
+  // Adresa site-ului, folosită în linkurile din emailuri.
+  siteUrl: process.env.SITE_URL ?? 'https://filipobrijan.github.io/teza/',
   adminEmail: process.env.ADMIN_EMAIL ?? '',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
   smtpHost: process.env.SMTP_HOST ?? '',

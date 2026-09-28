@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { comparePassword, hashPassword, signToken, verifyToken } from '../util/auth.js';
 import { sendVerificationCode } from '../util/email.js';
+import { notifyAdminsPendingUser } from '../util/notifications.js';
 
 const router = Router();
 
@@ -242,6 +243,7 @@ router.post('/verify-email', async (req, res) => {
     await client.query('UPDATE users SET email_verified_at = NOW() WHERE id = $1', [token.user_id]);
     await client.query('UPDATE email_verification_tokens SET used_at = NOW() WHERE id = $1', [token.id]);
     await client.query('COMMIT');
+    notifyAdminsPendingUser(token.user_id);
     return res.status(200).json({ message: 'Email verificat. Poți continua autentificarea.' });
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);

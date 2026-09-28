@@ -8,6 +8,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
+import { notifyAdminsPendingListing } from '../util/notifications.js';
 
 const router = Router();
 const uploadsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads');
@@ -170,6 +171,7 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
       ],
     );
 
+    notifyAdminsPendingListing(result.rows[0].id);
     return res.status(201).json({ listing: mapListing(result.rows[0]) });
   } catch (error) {
     console.error('Create listing error:', error);
@@ -283,19 +285,23 @@ router.patch('/:id/status', requireAuth, requireRole(['seller', 'admin']), async
   }
 
   try {
+    // Vânzătorul nu poate ocoli moderarea: un anunț în așteptare poate fi doar arhivat, nu activat.
     const result = await pool.query(
       `
         UPDATE product_listings
         SET status = $1::listing_status
         WHERE id = $2
-          AND ($3::user_role = 'admin' OR seller_id = $4)
-        RETURNING *
+          AND (
+            $3::user_role = 'admin'
+            OR (seller_id = $4 AND $1::listing_status <> 'pending' AND (status <> 'pending' OR $1::listing_status = 'archived'))
+          )
+        RETURNING ${listingColumns.replaceAll('pl.', '')}
       `,
       [input.data.status, idResult.data, req.user?.role, req.user?.sub],
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Oferta nu a fost găsită sau nu îți aparține.' });
+      return res.status(404).json({ message: 'Oferta nu a fost găsită, nu îți aparține sau așteaptă aprobarea administratorului.' });
     }
 
     return res.status(200).json({ listing: mapListing(result.rows[0]) });

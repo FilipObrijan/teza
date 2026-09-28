@@ -29,24 +29,28 @@ const sendWithBrevo = async (to: string, subject: string, text: string, html: st
   }
 };
 
-export const sendVerificationCode = async (email: string, code: string) => {
-  const subject = 'Codul tău de verificare AgroHub';
-  const text = `Codul tău de verificare este ${code}. Expiră în 15 minute.`;
-  const html = `<p>Codul tău de verificare AgroHub este:</p><p style="font-size:24px;font-weight:700;letter-spacing:4px">${code}</p><p>Codul expiră în 15 minute.</p>`;
-
+export const sendEmail = async ({ to, subject, text, html }: { to: string; subject: string; text: string; html: string }) => {
   if (env.brevoApiKey && env.smtpFrom) {
-    await sendWithBrevo(email, subject, text, html);
+    await sendWithBrevo(to, subject, text, html);
     return;
   }
 
   if (!transporter || !env.smtpFrom) {
     if (env.nodeEnv !== 'production') {
-      console.info(`[email verification] ${email}: ${code}`);
+      console.info(`[email] ${to}: ${subject}\n${text}`);
       return;
     }
 
-    throw new Error('Email verification is not configured (set BREVO_API_KEY or SMTP_HOST, plus SMTP_FROM).');
+    throw new Error('Email is not configured (set BREVO_API_KEY or SMTP_HOST, plus SMTP_FROM).');
   }
 
-  await transporter.sendMail({ from: env.smtpFrom, to: email, subject, text, html });
+  await transporter.sendMail({ from: env.smtpFrom, to, subject, text, html });
 };
+
+export const sendVerificationCode = (email: string, code: string) =>
+  sendEmail({
+    to: email,
+    subject: 'Codul tău de verificare AgroHub',
+    text: `Codul tău de verificare este ${code}. Expiră în 15 minute.`,
+    html: `<p>Codul tău de verificare AgroHub este:</p><p style="font-size:24px;font-weight:700;letter-spacing:4px">${code}</p><p>Codul expiră în 15 minute.</p>`,
+  });
