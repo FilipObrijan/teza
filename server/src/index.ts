@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { env } from './config/env.js';
+import { migrate } from './db/migrate.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import listingsRouter from './routes/listings.js';
@@ -15,7 +16,7 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use(cors());
+app.use(cors(env.corsOrigins.length > 0 ? { origin: env.corsOrigins } : undefined));
 app.use(express.json());
 app.use('/uploads', express.static(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../uploads')));
 
@@ -39,6 +40,13 @@ app.use('/api/listings', listingsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/orders', ordersRouter);
 
-app.listen(env.port, () => {
-  console.log(`Server is listening on http://localhost:${env.port}`);
-});
+migrate()
+  .then(() => {
+    app.listen(env.port, () => {
+      console.log(`Server is listening on http://localhost:${env.port}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Database migration failed:', error);
+    process.exit(1);
+  });

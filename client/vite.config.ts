@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: '/teza/', // <-- Added this line for GitHub Pages
+  // GitHub Pages servește site-ul la https://filipobrijan.github.io/teza/
+  base: command === 'build' ? '/teza/' : '/',
   server: {
     port: 5173,
   },
-});
+}));

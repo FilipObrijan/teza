@@ -33,6 +33,7 @@ CREATE TABLE product_listings (
   harvest_date DATE,
   delivery_terms VARCHAR(255),
   image_url VARCHAR(500),
+  image_data BYTEA,
   status listing_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

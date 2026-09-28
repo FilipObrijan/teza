@@ -25,6 +25,18 @@ npm run dev
 npm run dev:server
 ```
 
-## Următorul pas
+La prima pornire serverul aplică automat `database/schema.sql` dacă baza de date e goală. Dacă `ADMIN_EMAIL` și `ADMIN_PASSWORD` sunt setate, creează și contul de administrator.
 
-Definim modelul de date, fluxul de autentificare și backlog-ul MVP înainte de implementarea funcționalităților reale.
+## Deploy
+
+Frontend-ul și backend-ul sunt găzduite separat, deoarece GitHub Pages servește doar fișiere statice.
+
+**Frontend: GitHub Pages** (https://filipobrijan.github.io/teza/)
+1. GitHub → Settings → Pages → Source: **GitHub Actions**.
+2. GitHub → Settings → Secrets and variables → Actions → Variables: adaugă `VITE_API_URL` cu adresa API-ului (ex. `https://agrohub-api.onrender.com`).
+3. Fiecare push pe `main` rulează [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml).
+
+**Backend + PostgreSQL: Render**
+1. Render Dashboard → New → Blueprint → repo-ul `FilipObrijan/teza` (folosește [render.yaml](render.yaml)).
+2. Completează `ADMIN_EMAIL`, `ADMIN_PASSWORD` și, pentru emailurile de verificare, variabilele `SMTP_*`.
+3. Copiază URL-ul serviciului `agrohub-api` în variabila `VITE_API_URL` de pe GitHub și rulează din nou workflow-ul.

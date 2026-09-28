@@ -3,5 +3,9 @@ dist/
 .env
 .env.local
 .vite/
+client/vite.config.js
+client/vite.config.d.ts
+client/tsconfig.node.tsbuildinfo
+server/uploads/
 .DS_Store
 npm-debug.log*

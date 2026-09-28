@@ -1,0 +1,42 @@
+# Blueprint Render pentru API + PostgreSQL.
+# Render Dashboard → New → Blueprint → alege repo-ul FilipObrijan/teza.
+services:
+  - type: web
+    name: agrohub-api
+    runtime: node
+    plan: free
+    # --include=dev: cu NODE_ENV=production npm ar sări peste typescript, necesar la build.
+    buildCommand: npm ci --include=dev && npm run build --workspace server
+    startCommand: npm run start --workspace server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrohub-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://filipobrijan.github.io
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+databases:
+  - name: agrohub-db
+    plan: free
+    databaseName: agro_b2b
+    user: agro_user

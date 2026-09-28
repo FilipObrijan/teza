@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+
 type Listing = {
   id: string;
   product: string;
@@ -155,7 +157,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   const performDeleteListing = async (listingId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/listings/${listingId}`, {
+      const response = await fetch(`${API_BASE}/api/listings/${listingId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
       });
@@ -174,7 +176,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   const updateOrderStatus = async (orderId: string, status: 'confirmed' | 'rejected') => {
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
         body: JSON.stringify({ status }),
@@ -190,7 +192,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   const performCancelOrder = async (orderId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${orderId}/cancel`, {
+      const response = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
       });
@@ -209,7 +211,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   const performDeleteOrder = async (orderId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${orderId}`, {
+      const response = await fetch(`${API_BASE}/api/orders/${orderId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
       });
@@ -239,7 +241,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     setIsOrderEditing(true);
 
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${editingOrder.id}`, {
+      const response = await fetch(`${API_BASE}/api/orders/${editingOrder.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
         body: JSON.stringify({ quantityKg: Number(editedOrderQuantity), notes: editedOrderNotes || null }),
@@ -257,7 +259,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   const performDeleteReceivedOrder = async (orderId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${orderId}`, {
+      const response = await fetch(`${API_BASE}/api/orders/${orderId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
       });
@@ -278,7 +280,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     const token = sessionStorage.getItem('agrohub_token');
 
     try {
-      const response = await fetch('http://localhost:4000/api/dashboard/me', { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetch(`${API_BASE}/api/dashboard/me`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Nu am putut încărca datele cabinetului.');
       setDashboard(data as DashboardData);
@@ -294,7 +296,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     setIsChatLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${orderId}/messages`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` } });
+      const response = await fetch(`${API_BASE}/api/orders/${orderId}/messages`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` } });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Nu am putut încărca mesajele.');
       setChatMessages(data.messages as ChatMessage[]);
@@ -312,7 +314,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     setChatError('');
 
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/${activeChatOrderId}/messages`, {
+      const response = await fetch(`${API_BASE}/api/orders/${activeChatOrderId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
         body: JSON.stringify({ content: chatDraft }),
@@ -353,7 +355,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
     try {
       const response = await fetch(
-        editingListingId ? `http://localhost:4000/api/listings/${editingListingId}` : 'http://localhost:4000/api/listings',
+        editingListingId ? `${API_BASE}/api/listings/${editingListingId}` : `${API_BASE}/api/listings`,
         {
           method: editingListingId ? 'PATCH' : 'POST',
           headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
@@ -418,7 +420,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 }
 
 export default function App() {
-  const apiUrl = 'http://localhost:4000/api/auth';
+  const apiUrl = `${API_BASE}/api/auth`;
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('Toate regiunile');
   const [sort, setSort] = useState('recent');
@@ -445,7 +447,7 @@ export default function App() {
 
   const loadCatalog = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/listings');
+      const response = await fetch(`${API_BASE}/api/listings`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Nu am putut încărca catalogul.');
       setCatalogListings((data.listings as Array<Record<string, unknown>>).map((item, index) => ({
@@ -459,7 +461,7 @@ export default function App() {
         seller: String(item.sellerName ?? 'Producator verificat'),
         sellerEmail: item.sellerEmail ? String(item.sellerEmail) : undefined,
         sellerPhone: item.sellerPhone ? String(item.sellerPhone) : undefined,
-        imageUrl: item.imageUrl ? `http://localhost:4000/api/listings/${String(item.id)}/image` : null,
+        imageUrl: item.imageUrl ? `${API_BASE}/api/listings/${String(item.id)}/image` : null,
         accent: ['#e76f51', '#d4a373', '#8ab17d', '#e9c46a'][index % 4],
       })));
     } catch {
@@ -478,7 +480,7 @@ export default function App() {
     const token = sessionStorage.getItem('agrohub_token');
     if (!token) return;
 
-    fetch('http://localhost:4000/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message ?? 'Sesiune expirată.');
@@ -578,8 +580,8 @@ export default function App() {
 
     try {
       const [usersResponse, listingsResponse] = await Promise.all([
-        fetch('http://localhost:4000/api/admin/users?status=pending', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:4000/api/admin/listings?status=pending', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/users?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/listings?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const usersData = await usersResponse.json();
       const listingsData = await listingsResponse.json();
@@ -597,7 +599,7 @@ export default function App() {
     const token = sessionStorage.getItem('agrohub_token');
 
     try {
-      const response = await fetch(`http://localhost:4000/api/admin/listings/${listingId}/status`, {
+      const response = await fetch(`${API_BASE}/api/admin/listings/${listingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -614,7 +616,7 @@ export default function App() {
 
   const deleteAdminListing = async (listingId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/listings/${listingId}`, {
+      const response = await fetch(`${API_BASE}/api/listings/${listingId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
       });
@@ -631,7 +633,7 @@ export default function App() {
     const token = sessionStorage.getItem('agrohub_token');
 
     try {
-      const response = await fetch(`http://localhost:4000/api/admin/users/${userId}/status`, {
+      const response = await fetch(`${API_BASE}/api/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -675,7 +677,7 @@ export default function App() {
     setIsOrderSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/orders', {
+      const response = await fetch(`${API_BASE}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
         body: JSON.stringify({ listingId: selectedListing.id, quantityKg: Number(orderQuantity), notes: orderNotes || null }),
@@ -696,7 +698,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="/"><span className="brand-mark">A</span><span>agro<span>hub</span></span></a>
+        <a className="brand" href={import.meta.env.BASE_URL}><span className="brand-mark">A</span><span>agro<span>hub</span></span></a>
         <nav className="main-nav" aria-label="Navigare principala"><a className="active" href="#catalog">Catalog</a><a href="#how-it-works">Cum functioneaza</a></nav>
         <div className="top-actions">
           {authUser && <>{authUser.role !== 'admin' && <button className="cabinet-button" onClick={() => setActiveView('dashboard')}>Cabinetul meu</button>}<span className="welcome-message">Salut, {authUser.fullName}</span></>}
@@ -765,7 +767,7 @@ export default function App() {
         <p className="admin-section-label">Utilizatori</p>
         {pendingUsers.length === 0 ? <p className="empty-admin">Nu există conturi în așteptare.</p> : <div className="pending-list">{pendingUsers.map((user) => <article className="pending-user" key={user.id}><div><strong>{user.fullName}</strong><span>{user.email} / {user.role === 'seller' ? 'Vânzător' : 'Distribuitor'}</span><small>{user.region || 'Regiune nespecificată'}</small></div><div className="pending-actions"><button className="approve-button" onClick={() => updateUserStatus(user.id, 'approved')}>Aprobă</button><button className="reject-button" onClick={() => updateUserStatus(user.id, 'rejected')}>Respinge</button></div></article>)}</div>}
         <p className="admin-section-label">Anunțuri</p>
-        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`http://localhost:4000/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small></div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
+        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small></div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
       </section></div>}
     </main>
   );

@@ -19,9 +19,14 @@ const upload = multer({
 
 const storeUploadedImage = async (file: Express.Multer.File) => {
   const filename = `${crypto.randomUUID()}.webp`;
-  await sharp(file.buffer).rotate().webp({ quality: 86 }).toFile(path.join(uploadsDirectory, filename));
-  return `/uploads/${filename}`;
+  const imageData = await sharp(file.buffer).rotate().webp({ quality: 86 }).toBuffer();
+  return { imageUrl: `/uploads/${filename}`, imageData };
 };
+
+const listingColumns = `
+  pl.id, pl.seller_id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg, pl.unit_measure,
+  pl.region, pl.harvest_date, pl.delivery_terms, pl.image_url, pl.status, pl.created_at, pl.updated_at
+`;
 
 const listingStatusSchema = z.enum(['pending', 'active', 'paused', 'archived']);
 
@@ -77,7 +82,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
       `
-        SELECT pl.*, u.full_name AS seller_name, u.email AS seller_email, u.phone AS seller_phone
+        SELECT ${listingColumns}, u.full_name AS seller_name, u.email AS seller_email, u.phone AS seller_phone
         FROM product_listings pl
         JOIN users u ON u.id = pl.seller_id
         WHERE pl.status = $1::listing_status
@@ -100,10 +105,16 @@ router.get('/:id/image', async (req, res) => {
   if (!idResult.success) return res.status(400).json({ message: 'ID invalid.' });
 
   try {
-    const result = await pool.query('SELECT image_url FROM product_listings WHERE id = $1', [idResult.data]);
-    const imageUrl = result.rows[0]?.image_url;
+    const result = await pool.query('SELECT image_url, image_data FROM product_listings WHERE id = $1', [idResult.data]);
+    const { image_url: imageUrl, image_data: imageData } = result.rows[0] ?? {};
+
+    if (imageData) {
+      return res.type('image/webp').send(imageData);
+    }
+
     if (!imageUrl) return res.status(404).json({ message: 'Oferta nu are fotografie.' });
 
+    // Fotografii mai vechi, salvate doar pe disc.
     const filename = path.basename(String(imageUrl));
     return res.sendFile(path.join(uploadsDirectory, filename));
   } catch (error) {
@@ -127,7 +138,7 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
   }
 
   try {
-    const imageUrl = await storeUploadedImage(req.file);
+    const { imageUrl, imageData } = await storeUploadedImage(req.file);
     const sellerResult = await pool.query(
       `SELECT id FROM users WHERE id = $1 AND role = 'seller' AND status = 'approved'`,
       [req.user?.sub],
@@ -140,9 +151,9 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
     const result = await pool.query(
       `
         INSERT INTO product_listings
-          (seller_id, product_name, variety, quantity_kg, price_per_kg, unit_measure, region, harvest_date, delivery_terms, image_url, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
-        RETURNING *
+          (seller_id, product_name, variety, quantity_kg, price_per_kg, unit_measure, region, harvest_date, delivery_terms, image_url, image_data, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
+        RETURNING ${listingColumns.replaceAll('pl.', '')}
       `,
       [
         req.user?.sub,
@@ -155,6 +166,7 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
         input.data.harvestDate ?? null,
         input.data.deliveryTerms ?? null,
         imageUrl,
+        imageData,
       ],
     );
 
@@ -174,7 +186,7 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
   }
 
   try {
-    const imageUrl = req.file ? await storeUploadedImage(req.file) : null;
+    const image = req.file ? await storeUploadedImage(req.file) : null;
     const result = await pool.query(
       `
         UPDATE product_listings
@@ -187,9 +199,10 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
             harvest_date = $7,
             delivery_terms = $8,
             image_url = COALESCE($9, image_url),
+            image_data = COALESCE($12, image_data),
             updated_at = NOW()
           WHERE id = $10 AND seller_id = $11
-        RETURNING *
+        RETURNING ${listingColumns.replaceAll('pl.', '')}
       `,
       [
         input.data.productName,
@@ -200,9 +213,10 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
         input.data.region,
         input.data.harvestDate ?? null,
         input.data.deliveryTerms ?? null,
-        imageUrl,
+        image?.imageUrl ?? null,
         idResult.data,
         req.user?.sub,
+        image?.imageData ?? null,
       ],
     );
 
