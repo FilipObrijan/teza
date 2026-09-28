@@ -27,6 +27,10 @@ const sendWithBrevo = async (to: string, subject: string, text: string, html: st
   if (!response.ok) {
     throw new Error(`Brevo email failed: ${response.status} ${await response.text()}`);
   }
+
+  // messageId-ul poate fi căutat în Brevo → Transactional → Logs, ca să vezi dacă emailul a fost livrat.
+  const { messageId } = (await response.json().catch(() => ({}))) as { messageId?: string };
+  console.info(`Email sent via Brevo to ${to}: "${subject}" (messageId ${messageId ?? 'unknown'})`);
 };
 
 export const sendEmail = async ({ to, subject, text, html }: { to: string; subject: string; text: string; html: string }) => {
