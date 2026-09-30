@@ -121,6 +121,9 @@ h3 { margin: 0 0 4px; font-size: 1.55rem; letter-spacing: -.055em; }
 .section-heading .kicker { margin-bottom: 7px; }
 .section-heading h2 { font-size: 1.35rem; }
 .dashboard-muted { color: #737b72; font-size: .78rem; }
+.action-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 30; display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100vw - 32px); padding: 12px 12px 12px 18px; border-radius: 8px; color: #fff; background: #a64034; box-shadow: 0 14px 34px rgba(27,41,35,.28); font-size: .82rem; line-height: 1.4; transform: translateX(-50%); }
+.action-toast button { flex-shrink: 0; width: 28px; height: 28px; border: 0; border-radius: 50%; color: #fff; background: rgba(255,255,255,.18); font-size: 1.1rem; line-height: 1; }
+
 /* Mesaje: bulă plutitoare + fereastră de tip messenger (lista în stânga, conversația în dreapta). */
 .messenger-fab { position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 9; display: grid; place-items: center; width: 60px; height: 60px; border: 0; border-radius: 50%; color: #fff; background: #263b30; box-shadow: 0 12px 30px rgba(27,41,35,.3); transition: transform .2s ease, background .2s ease; }
 .messenger-fab:hover { transform: scale(1.06); background: #1b2923; }

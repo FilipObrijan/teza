@@ -48,6 +48,8 @@ CREATE TABLE orders (
   total_amount NUMERIC(10,2) NOT NULL CHECK (total_amount >= 0),
   status order_status NOT NULL DEFAULT 'pending',
   notes TEXT,
+  hidden_for_seller_at TIMESTAMPTZ,
+  hidden_for_distributor_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

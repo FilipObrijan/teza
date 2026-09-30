@@ -58,6 +58,10 @@ export async function migrate() {
   // Momentul în care utilizatorul și-a șters conversația; mesajele de dinainte nu i se mai arată.
   await pool.query('ALTER TABLE order_message_reads ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ');
 
+  // Ștergerea unei comenzi o ascunde doar din istoricul celui care o șterge.
+  await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_seller_at TIMESTAMPTZ');
+  await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_distributor_at TIMESTAMPTZ');
+
   if (env.adminEmail && env.adminPassword) {
     await pool.query(
       `

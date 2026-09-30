@@ -467,15 +467,17 @@ router.delete('/:id', requireAuth, requireRole(['seller', 'distributor']), async
     return res.status(400).json({ message: 'ID de comandă invalid.' });
   }
 
+  const isSeller = req.user?.role === 'seller';
+
   try {
     const orderResult = await pool.query(
       `
         SELECT o.status
         FROM orders o
         JOIN product_listings pl ON pl.id = o.listing_id
-        WHERE o.id = $1 AND (o.distributor_id = $2 OR pl.seller_id = $2)
+        WHERE o.id = $1 AND ($2::user_role = 'seller' AND pl.seller_id = $3 OR $2::user_role = 'distributor' AND o.distributor_id = $3)
       `,
-      [idResult.data, req.user?.sub],
+      [idResult.data, req.user?.role, req.user?.sub],
     );
     const order = orderResult.rows[0];
 
@@ -483,14 +485,25 @@ router.delete('/:id', requireAuth, requireRole(['seller', 'distributor']), async
       return res.status(404).json({ message: 'Comanda nu a fost găsită sau nu îți aparține.' });
     }
 
-    // O comandă confirmată a scăzut deja stocul; ștergerea ei ar lăsa stocul greșit și ar pierde istoricul.
-    if (order.status === 'confirmed' || order.status === 'completed') {
-      return res.status(400).json({ message: 'O comandă acceptată nu poate fi ștearsă. Anulează-o mai întâi.' });
+    // O ofertă în așteptare încă cere o decizie; dacă ar dispărea, cealaltă parte ar aștepta la nesfârșit.
+    if (order.status === 'pending') {
+      return res.status(400).json({
+        message: isSeller
+          ? 'Acceptă sau refuză oferta înainte s-o ștergi.'
+          : 'Anulează comanda înainte s-o ștergi din istoric.',
+      });
     }
 
-    await pool.query(`DELETE FROM orders WHERE id = $1 AND status NOT IN ('confirmed', 'completed')`, [idResult.data]);
+    // Comanda se ascunde doar din istoricul celui care o șterge. Partenerul o păstrează,
+    // iar stocul și statisticile rămân corecte (o comandă acceptată chiar a avut loc).
+    await pool.query(
+      isSeller
+        ? 'UPDATE orders SET hidden_for_seller_at = NOW() WHERE id = $1'
+        : 'UPDATE orders SET hidden_for_distributor_at = NOW() WHERE id = $1',
+      [idResult.data],
+    );
 
-    return res.status(200).json({ message: 'Comanda a fost ștearsă din istoric.' });
+    return res.status(200).json({ message: 'Comanda a fost ștearsă din istoricul tău.' });
   } catch (error) {
     console.error('Delete order error:', error);
     return res.status(500).json({ message: 'Eroare la ștergerea comenzii.' });

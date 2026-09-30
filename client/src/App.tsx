@@ -73,6 +73,14 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
   const [activeOrderMenuId, setActiveOrderMenuId] = useState<string | null>(null);
   const [activeReceivedOrderMenuId, setActiveReceivedOrderMenuId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{ message: string; action: () => Promise<void> } | null>(null);
+  // Erorile acțiunilor (ștergere, anulare etc.) apar ca notificare jos pe ecran, lângă locul unde s-a apăsat.
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    if (!actionError) return;
+    const timer = window.setTimeout(() => setActionError(''), 6000);
+    return () => window.clearTimeout(timer);
+  }, [actionError]);
   const [editingOrder, setEditingOrder] = useState<EditableOrder | null>(null);
   const [editedOrderQuantity, setEditedOrderQuantity] = useState('');
   const [editedOrderNotes, setEditedOrderNotes] = useState('');
@@ -145,7 +153,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       setActiveMenuId(null);
       await loadDashboard();
     } catch (error) {
-      setListingError(error instanceof Error ? error.message : 'Eroare la ștergerea anunțului.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la ștergerea anunțului.');
     }
   };
 
@@ -165,7 +173,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       if (!response.ok) throw new Error(data.message ?? 'Nu am putut actualiza cererea.');
       await loadDashboard();
     } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Eroare la actualizarea cererii.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la actualizarea cererii.');
     }
   };
 
@@ -180,7 +188,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       setActiveOrderMenuId(null);
       await loadDashboard();
     } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Eroare la anularea comenzii.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la anularea comenzii.');
     }
   };
 
@@ -199,7 +207,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       setActiveOrderMenuId(null);
       await loadDashboard();
     } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Eroare la ștergerea comenzii.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la ștergerea comenzii.');
     }
   };
 
@@ -230,7 +238,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       setEditingOrder(null);
       await loadDashboard();
     } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Eroare la editarea comenzii.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la editarea comenzii.');
     } finally {
       setIsOrderEditing(false);
     }
@@ -247,7 +255,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
       setActiveReceivedOrderMenuId(null);
       await loadDashboard();
     } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Eroare la ștergerea comenzii.');
+      setActionError(error instanceof Error ? error.message : 'Eroare la ștergerea comenzii.');
     }
   };
 
@@ -328,6 +336,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   return (
     <section className="dashboard-shell">
+      {actionError && <div className="action-toast" role="alert"><span>{actionError}</span><button type="button" onClick={() => setActionError('')} aria-label="Închide mesajul">×</button></div>}
       {editingOrder && <div className="modal-backdrop" onClick={() => setEditingOrder(null)}><section className="listing-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => setEditingOrder(null)} aria-label="Inchide">x</button><p className="kicker">Editează comanda</p><h2>{editingOrder.productName}</h2><p>Modifică detaliile și retrimite comanda către vânzător.</p><p className="dashboard-muted">Stoc disponibil acum: {editingOrder.availableQuantityKg.toLocaleString('ro-RO')} kg</p><form className="listing-form" onSubmit={submitOrderEdit}><label>Cantitate dorită (kg)<input required min="0.01" max={editingOrder.availableQuantityKg} step="0.01" type="number" value={editedOrderQuantity} onChange={(event) => setEditedOrderQuantity(event.target.value)} /></label><label>Mesaj pentru vânzător <span className="optional-label">(opțional)</span><textarea value={editedOrderNotes} onChange={(event) => setEditedOrderNotes(event.target.value)} placeholder="Scrie un mesaj despre comandă..." /></label><button className="primary-action" type="submit" disabled={isOrderEditing}>{isOrderEditing ? 'Se salvează...' : 'Salvează și retrimite'}</button></form></section></div>}
       {confirmation && <div className="confirmation-backdrop" role="presentation"><section className="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="confirmation-title"><span className="confirmation-mark">!</span><p className="kicker">Confirmă acțiunea</p><h2 id="confirmation-title">Ești sigur?</h2><p>{confirmation.message}</p><div className="confirmation-actions"><button type="button" className="cancel-action" onClick={() => setConfirmation(null)}>Renunță</button><button type="button" className="confirm-action" onClick={async () => { const action = confirmation.action; setConfirmation(null); await action(); }}>Confirmă</button></div></section></div>}
       <div className="dashboard-header">
@@ -345,9 +354,9 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
           {!dashboard && !dashboardError && <p className="dashboard-loading">Se încarcă datele cabinetului...</p>}
           {dashboard && isSeller && sellerListings.length === 0 && <div className="empty-dashboard"><strong>Nu ai încă anunțuri.</strong><span>Adaugă primul tău produs pentru a începe să vinzi.</span><button className="empty-action" onClick={openNewListing}>+ Adaugă primul anunț</button></div>}
           {dashboard && isSeller && sellerListings.length > 0 && <div className="activity-table">{sellerListings.map((listing) => <div className="table-row listing-row" key={listing.id}><span><strong>{listing.productName}</strong><small>{listing.variety}</small></span><span>{listing.quantityKg.toLocaleString('ro-RO')} kg</span><span className={listing.status === 'active' ? 'status-active' : 'status-paused'}>{listing.status}</span><div className="row-menu-wrap"><button className="row-more" aria-label="Mai multe opțiuni pentru anunț" onClick={() => setActiveMenuId(activeMenuId === listing.id ? null : listing.id)}>...</button>{activeMenuId === listing.id && <div className="listing-menu"><button type="button" className="menu-action" onClick={() => openEditListing(listing)}>Editează</button><button type="button" className="menu-action danger" onClick={() => void deleteListing(listing.id)}>Șterge</button></div>}</div></div>)}</div>}
-          {dashboard && isSeller && <section className="received-orders"><div className="section-heading"><p className="kicker">Cereri de la distribuitori</p><h2>Oferte primite</h2></div>{receivedOrders.length === 0 ? <p className="dashboard-muted">Nu ai primit încă nicio cerere de comandă.</p> : <div className="activity-table">{receivedOrders.map((order) => <div className="received-order" key={order.id}><div><strong>{order.productName} / {order.variety}</strong><small>{order.distributorName} · {order.distributorPhone || order.distributorEmail || 'Contact indisponibil'}</small>{order.notes && <small>Mesaj: {order.notes}</small>}</div><span>{order.quantityKg.toLocaleString('ro-RO')} kg</span><span>{order.totalAmount.toLocaleString('ro-RO')} lei</span><span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span>{order.status === 'pending' && <div className="order-actions"><button type="button" className="approve-button" onClick={() => void updateOrderStatus(order.id, 'confirmed')}>Acceptă</button><button type="button" className="reject-button" onClick={() => void updateOrderStatus(order.id, 'rejected')}>Refuză</button></div>}<div className="row-menu-wrap received-order-menu-wrap"><button type="button" className="row-more order-more" aria-label="Mai multe opțiuni pentru oferta primită" aria-expanded={activeReceivedOrderMenuId === order.id} onClick={() => setActiveReceivedOrderMenuId(activeReceivedOrderMenuId === order.id ? null : order.id)}>...</button>{activeReceivedOrderMenuId === order.id && <div className="listing-menu order-menu"><button type="button" className="menu-action danger" onClick={() => void deleteReceivedOrder(order.id)}>Șterge comanda</button></div>}</div></div>)}</div>}</section>}
+          {dashboard && isSeller && <section className="received-orders"><div className="section-heading"><p className="kicker">Cereri de la distribuitori</p><h2>Oferte primite</h2></div>{receivedOrders.length === 0 ? <p className="dashboard-muted">Nu ai primit încă nicio cerere de comandă.</p> : <div className="activity-table">{receivedOrders.map((order) => <div className="received-order" key={order.id}><div><strong>{order.productName} / {order.variety}</strong><small>{order.distributorName} · {order.distributorPhone || order.distributorEmail || 'Contact indisponibil'}</small>{order.notes && <small>Mesaj: {order.notes}</small>}</div><span>{order.quantityKg.toLocaleString('ro-RO')} kg</span><span>{order.totalAmount.toLocaleString('ro-RO')} lei</span><span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span>{order.status === 'pending' && <div className="order-actions"><button type="button" className="approve-button" onClick={() => void updateOrderStatus(order.id, 'confirmed')}>Acceptă</button><button type="button" className="reject-button" onClick={() => void updateOrderStatus(order.id, 'rejected')}>Refuză</button></div>}<div className="row-menu-wrap received-order-menu-wrap">{order.status !== 'pending' && <button type="button" className="row-more order-more" aria-label="Mai multe opțiuni pentru oferta primită" aria-expanded={activeReceivedOrderMenuId === order.id} onClick={() => setActiveReceivedOrderMenuId(activeReceivedOrderMenuId === order.id ? null : order.id)}>...</button>}{activeReceivedOrderMenuId === order.id && <div className="listing-menu order-menu"><button type="button" className="menu-action danger" onClick={() => void deleteReceivedOrder(order.id)}>Șterge comanda</button></div>}</div></div>)}</div>}</section>}
           {dashboard && !isSeller && distributorOrders.length === 0 && <div className="empty-dashboard"><strong>Nu ai încă comenzi.</strong><span>Explorează catalogul pentru a găsi produsele potrivite.</span><button className="empty-action" onClick={onBack}>Explorează catalogul <span>-&gt;</span></button></div>}
-          {dashboard && !isSeller && distributorOrders.length > 0 && <div className="activity-table">{distributorOrders.slice(0, showAllOrders ? undefined : 10).map((order) => <div className="table-row" key={order.id}><span><strong>#{order.id.slice(0, 8)}</strong><small>{order.productName} / {order.quantityKg.toLocaleString('ro-RO')} kg</small></span><span>{order.sellerName}</span><span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span><div className="row-menu-wrap"><button type="button" className="row-more order-more" aria-label="Mai multe opțiuni pentru comandă" aria-expanded={activeOrderMenuId === order.id} onClick={() => setActiveOrderMenuId(activeOrderMenuId === order.id ? null : order.id)}>...</button>{activeOrderMenuId === order.id && <div className="listing-menu order-menu"><button type="button" className="menu-action" onClick={() => void cancelOrder(order.id)}>Anulează comanda</button><button type="button" className="menu-action" onClick={() => openEditOrder(order)}>Editează comanda</button><button type="button" className="menu-action danger" onClick={() => void deleteOrder(order.id)}>Șterge din istoric</button></div>}</div></div>)}</div>}
+          {dashboard && !isSeller && distributorOrders.length > 0 && <div className="activity-table">{distributorOrders.slice(0, showAllOrders ? undefined : 10).map((order) => <div className="table-row" key={order.id}><span><strong>#{order.id.slice(0, 8)}</strong><small>{order.productName} / {order.quantityKg.toLocaleString('ro-RO')} kg</small></span><span>{order.sellerName}</span><span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span><div className="row-menu-wrap"><button type="button" className="row-more order-more" aria-label="Mai multe opțiuni pentru comandă" aria-expanded={activeOrderMenuId === order.id} onClick={() => setActiveOrderMenuId(activeOrderMenuId === order.id ? null : order.id)}>...</button>{activeOrderMenuId === order.id && <div className="listing-menu order-menu"><button type="button" className="menu-action" onClick={() => void cancelOrder(order.id)}>Anulează comanda</button><button type="button" className="menu-action" onClick={() => openEditOrder(order)}>Editează comanda</button>{order.status !== 'pending' && <button type="button" className="menu-action danger" onClick={() => void deleteOrder(order.id)}>Șterge din istoric</button>}</div>}</div></div>)}</div>}
         </section>
       </div>
       {isListingFormOpen && <div className="modal-backdrop" onClick={() => { resetListingForm(); setIsListingFormOpen(false); }}><section className="listing-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => { resetListingForm(); setIsListingFormOpen(false); }} aria-label="Inchide">x</button><p className="kicker">{editingListingId ? 'Editeaza anuntul' : 'Oferta noua'}</p><h2>{editingListingId ? 'Modifica anuntul.' : 'Adauga un anunt.'}</h2><p>{editingListingId ? 'Actualizeaza detaliile existente si salveaza modificarile.' : 'Completeaza datele produsului pe care vrei sa il oferi.'}</p><form className="listing-form" onSubmit={submitListing}><label>Fotografie produs<span className="optional-label">{editingListingId ? ' (opțional)' : ' (obligatorie)'}</span><input required={!editingListingId} accept="image/*" type="file" onChange={(event) => setListingForm({ ...listingForm, image: event.target.files?.[0] ?? null })} /></label><label>Produs<input required value={listingForm.productName} onChange={(event) => setListingForm({ ...listingForm, productName: event.target.value })} placeholder="Ex: Rosii" /></label><label>Soi / varietate<input required value={listingForm.variety} onChange={(event) => setListingForm({ ...listingForm, variety: event.target.value })} placeholder="Ex: Cherry premium" /></label><div className="form-row"><label>Cantitate (kg)<input required min="0.01" step="0.01" type="number" value={listingForm.quantityKg} onChange={(event) => setListingForm({ ...listingForm, quantityKg: event.target.value })} /></label><label>Pret / kg<input required min="0" step="0.01" type="number" value={listingForm.pricePerKg} onChange={(event) => setListingForm({ ...listingForm, pricePerKg: event.target.value })} /></label></div><label>Regiune<input required value={listingForm.region} onChange={(event) => setListingForm({ ...listingForm, region: event.target.value })} placeholder="Ex: Cluj" /></label><div className="form-row"><label>Data recoltei<input type="date" value={listingForm.harvestDate || ''} onChange={(event) => setListingForm({ ...listingForm, harvestDate: event.target.value })} /></label><label>Unitate<select value={listingForm.unitMeasure} onChange={(event) => setListingForm({ ...listingForm, unitMeasure: event.target.value })}><option value="kg">kg</option><option value="tona">tona</option><option value="lada">lada</option></select></label></div><label>Termeni de livrare<input value={listingForm.deliveryTerms || ''} onChange={(event) => setListingForm({ ...listingForm, deliveryTerms: event.target.value })} placeholder="Ex: Livrare in 24h" /></label>{listingError && <p className="auth-feedback error">{listingError}</p>}<button className="primary-action" type="submit" disabled={isListingSubmitting}>{isListingSubmitting ? 'Se salveaza...' : editingListingId ? 'Salveaza modificarile' : 'Publica anuntul'}</button></form></section></div>}

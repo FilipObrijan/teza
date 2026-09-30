@@ -48,7 +48,7 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
             FROM orders o
             JOIN product_listings pl ON pl.id = o.listing_id
             JOIN users u ON u.id = o.distributor_id
-            WHERE pl.seller_id = $1
+            WHERE pl.seller_id = $1 AND o.hidden_for_seller_at IS NULL
             ORDER BY o.created_at DESC
           `,
           [req.user.sub],
@@ -114,7 +114,7 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
           FROM orders o
           JOIN product_listings pl ON pl.id = o.listing_id
           JOIN users u ON u.id = pl.seller_id
-          WHERE o.distributor_id = $1
+          WHERE o.distributor_id = $1 AND o.hidden_for_distributor_at IS NULL
           ORDER BY o.created_at DESC
           LIMIT 10
         `,
