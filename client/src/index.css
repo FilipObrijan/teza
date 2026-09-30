@@ -121,12 +121,11 @@ h3 { margin: 0 0 4px; font-size: 1.55rem; letter-spacing: -.055em; }
 .section-heading .kicker { margin-bottom: 7px; }
 .section-heading h2 { font-size: 1.35rem; }
 .dashboard-muted { color: #737b72; font-size: .78rem; }
-.dashboard-chat-links { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; overflow-x: auto; }
-.dashboard-chat-links .kicker { flex-shrink: 0; margin: 0 7px 0 0; }
-.dashboard-chat-links button { flex-shrink: 0; border: 1px solid #d7d4c8; padding: 9px 12px; color: #263b30; background: #fff; font-size: .7rem; font-weight: 700; cursor: pointer; }
-.dashboard-chat-links button:hover { border-color: #d85f36; color: #d85f36; }
-.order-shortcuts { display: inline-flex; gap: 4px; flex-shrink: 0; }
-.order-shortcuts button:last-child { color: #d85f36; }
+.conversation-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; align-items: center; gap: 12px; min-height: 66px; padding: 12px 0; border-bottom: 1px solid #e5e4da; color: #5e675f; font-size: .75rem; }
+.conversation-row strong, .conversation-row small { display: block; }
+.conversation-row strong { color: #263b30; }
+.conversation-row small { margin-top: 5px; color: #969a91; font-size: .67rem; }
+.conversation-row .panel-action:hover { color: #fff; background: #d85f36; }
 .chat-modal { position: relative; width: min(100%, 520px); max-height: calc(100vh - 40px); overflow-y: auto; margin: auto 0; padding: 38px; background: #f4f1e9; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
 .chat-messages { display: grid; gap: 9px; max-height: 330px; min-height: 130px; overflow-y: auto; margin-top: 22px; padding: 15px; border: 1px solid #d7d4c8; background: #fff; }
 .chat-message { max-width: 82%; padding: 10px 12px; background: #f0eee6; }
@@ -247,6 +246,9 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
   .received-order .order-actions { grid-column: 1 / -1; grid-row: 4; margin-top: 6px; }
   .received-order .order-actions button { flex: 1; padding: 11px; }
   .row-more, .order-more { min-width: 32px; min-height: 32px; }
+
+  .conversation-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 14px 0; }
+  .conversation-row .panel-action { grid-column: 1 / -1; padding: 11px; }
 }
 
 /* Telefon */
