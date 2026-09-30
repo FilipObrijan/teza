@@ -34,3 +34,6 @@ services:
       # Adresa de expeditor, verificată în Brevo.
       - key: SMTP_FROM
         sync: false
+      # Client ID-ul OAuth din Google Cloud, pentru „Continuă cu Google” (același ca VITE_GOOGLE_CLIENT_ID pe Cloudflare).
+      - key: GOOGLE_CLIENT_ID
+        sync: false

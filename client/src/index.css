@@ -240,6 +240,9 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
 .login-modal label { display: block; margin-top: 17px; color: #5e675f; font-size: .75rem; font-weight: 700; }
 .login-modal input, .login-modal select { display: block; width: 100%; margin-top: 7px; padding: 12px; border: 1px solid #d7d4c8; outline-color: #d85f36; background: #fff; }
 .auth-feedback { margin: 16px 0 0; font-size: .78rem; line-height: 1.45; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; color: #969a91; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #d7d4c8; }
+.google-button { display: flex; justify-content: center; min-height: 44px; }
 .auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 16px; }
 .text-button { padding: 0; border: 0; background: transparent; color: #d85f36; font-size: .75rem; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .auth-feedback.error { color: #b54232; }

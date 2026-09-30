@@ -37,6 +37,7 @@ Toate serviciile au planuri gratuite care permit uz comercial. Fiecare push pe `
 | Server (API) | Render | [render.yaml](render.yaml) |
 | Bază de date | Neon (PostgreSQL) | `DATABASE_URL` pe Render |
 | Emailuri | Brevo | `BREVO_API_KEY` și `SMTP_FROM` pe Render |
+| Logare cu Google | Google Cloud (OAuth) | `GOOGLE_CLIENT_ID` pe Render și `VITE_GOOGLE_CLIENT_ID` pe Cloudflare (aceeași valoare) |
 | Menținere activă | UptimeRobot | ping la `/api/health` la fiecare 5 minute |
 
 Schimbările de structură a bazei de date se adaugă în [server/src/db/migrate.ts](server/src/db/migrate.ts), cu instrucțiuni idempotente (`IF NOT EXISTS`). `database/schema.sql` rulează doar pe o bază de date goală.

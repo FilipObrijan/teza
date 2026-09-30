@@ -33,4 +33,6 @@ export const env = {
   smtpPassword: process.env.SMTP_PASSWORD ?? '',
   smtpFrom: process.env.SMTP_FROM ?? '',
   brevoApiKey: process.env.BREVO_API_KEY ?? '',
+  // Client ID-ul OAuth din Google Cloud Console; gol = logarea cu Google e dezactivată.
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
 };

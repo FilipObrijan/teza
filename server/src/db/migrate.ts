@@ -58,6 +58,10 @@ export async function migrate() {
   // Momentul în care utilizatorul și-a șters conversația; mesajele de dinainte nu i se mai arată.
   await pool.query('ALTER TABLE order_message_reads ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ');
 
+  // Logarea cu Google: contul se leagă de identificatorul Google, iar parola devine opțională.
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE');
+  await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
+
   // Ștergerea unei comenzi o ascunde doar din istoricul celui care o șterge.
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_seller_at TIMESTAMPTZ');
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_distributor_at TIMESTAMPTZ');

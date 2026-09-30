@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import GoogleSignInButton, { isGoogleSignInEnabled } from './GoogleSignIn';
 import Messenger from './Messenger';
 import { API_BASE, AuthUser, orderStatusClass, orderStatusLabel } from './shared';
 
@@ -30,7 +31,8 @@ const formatDisplayDate = (value: unknown) => {
   return raw;
 };
 
-type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+// 'google' = prima logare cu Google: contul nou își alege rolul înainte să fie creat.
+type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
 
 type PendingUser = AuthUser & {
   phone?: string;
@@ -400,6 +402,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authForm, setAuthForm] = useState({ fullName: '', email: '', password: '', role: 'distributor', phone: '', region: '' });
   const [verificationCode, setVerificationCode] = useState('');
+  const [googleSignup, setGoogleSignup] = useState<{ credential: string; fullName: string; email: string } | null>(null);
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -514,13 +517,59 @@ export default function App() {
     }
   };
 
-  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  // Google trimite un „credential” (token semnat); serverul îl verifică și răspunde cu una din trei situații.
+  const signInWithGoogle = async (credential: string, accountDetails?: { role: string; phone: string; region: string }) => {
     setAuthMessage('');
     setAuthError('');
     setIsSubmitting(true);
 
-    const endpoints: Record<AuthMode, string> = {
+    try {
+      const response = await fetch(`${apiUrl}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, ...accountDetails }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message ?? 'Logarea cu Google a eșuat.');
+
+      if (data.token) {
+        // Cont existent și aprobat: intră direct.
+        sessionStorage.setItem('agrohub_token', data.token);
+        setAuthUser(data.user);
+        setGoogleSignup(null);
+        setIsLoginOpen(false);
+      } else if (data.needsRole) {
+        // Cont nou: mai trebuie ales rolul.
+        setGoogleSignup({ credential, fullName: data.fullName, email: data.email });
+        setAuthMode('google');
+      } else {
+        // Cont nou creat: așteaptă aprobarea adminului.
+        setGoogleSignup(null);
+        setAuthMode('login');
+        setAuthMessage(data.message);
+      }
+    } catch (error) {
+      setAuthError(error instanceof TypeError
+        ? 'Nu am putut contacta serverul. Verifică conexiunea și încearcă din nou.'
+        : error instanceof Error ? error.message : 'Logarea cu Google a eșuat.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (authMode === 'google') {
+      if (googleSignup) await signInWithGoogle(googleSignup.credential, { role: authForm.role, phone: authForm.phone, region: authForm.region });
+      return;
+    }
+
+    setAuthMessage('');
+    setAuthError('');
+    setIsSubmitting(true);
+
+    const endpoints: Record<Exclude<AuthMode, 'google'>, string> = {
       login: 'login',
       register: 'register',
       verify: 'verify-email',
@@ -767,28 +816,32 @@ export default function App() {
         <button className="close-button" onClick={() => setIsLoginOpen(false)} aria-label="Inchide">x</button>
         {(authMode === 'login' || authMode === 'register') && <div className="auth-tabs"><button className={authMode === 'login' ? 'selected' : ''} onClick={() => openAuth('login')}>Autentificare</button><button className={authMode === 'register' ? 'selected' : ''} onClick={() => openAuth('register')}>Cont nou</button></div>}
         <p className="kicker">Acces platforma</p>
-        <h2>{{ login: 'Bine ai revenit.', register: 'Creeaza-ti contul.', verify: 'Verifică adresa de email.', forgot: 'Ai uitat parola?', reset: 'Setează o parolă nouă.' }[authMode]}</h2>
-        <p>{{ login: 'Intra in cont pentru a continua.', register: 'Alege rolul potrivit pentru activitatea ta.', verify: 'Introdu codul de 6 cifre trimis la adresa ta.', forgot: 'Introdu emailul contului și îți trimitem un cod de resetare.', reset: 'Introdu codul primit pe email și noua parolă.' }[authMode]}</p>
+        <h2>{{ login: 'Bine ai revenit.', register: 'Creeaza-ti contul.', verify: 'Verifică adresa de email.', forgot: 'Ai uitat parola?', reset: 'Setează o parolă nouă.', google: 'Aproape gata.' }[authMode]}</h2>
+        <p>{{ login: 'Intra in cont pentru a continua.', register: 'Alege rolul potrivit pentru activitatea ta.', verify: 'Introdu codul de 6 cifre trimis la adresa ta.', forgot: 'Introdu emailul contului și îți trimitem un cod de resetare.', reset: 'Introdu codul primit pe email și noua parolă.', google: `Salut, ${googleSignup?.fullName ?? ''}! Alege tipul contului pentru ${googleSignup?.email ?? ''}.` }[authMode]}</p>
         <form onSubmit={handleAuthSubmit}>
           {authMode === 'register' && <label>Nume complet<input required value={authForm.fullName} onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })} placeholder="Nume si prenume" /></label>}
-          <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="nume@companie.ro" /></label>
+          {authMode !== 'google' && <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="nume@companie.ro" /></label>}
           {(authMode === 'verify' || authMode === 'reset') && <label>{authMode === 'verify' ? 'Cod de verificare' : 'Cod de resetare'}<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} placeholder="123456" /></label>}
           {authMode === 'login' && <label>Parola<input required type="password" autoComplete="current-password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="Parola ta" /></label>}
           {(authMode === 'register' || authMode === 'reset') && <label>{authMode === 'reset' ? 'Parola nouă' : 'Parola'}<input required minLength={8} type="password" autoComplete="new-password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="Minimum 8 caractere" /></label>}
-          {authMode === 'register' && <>
+          {(authMode === 'register' || authMode === 'google') && <>
             <label>Tip cont<select value={authForm.role} onChange={(event) => setAuthForm({ ...authForm, role: event.target.value })}><option value="distributor">Distribuitor</option><option value="seller">Vanzator</option></select></label>
             <label>Telefon<input value={authForm.phone} onChange={(event) => setAuthForm({ ...authForm, phone: event.target.value })} placeholder="07xx xxx xxx" /></label>
             <label>Regiune<input value={authForm.region} onChange={(event) => setAuthForm({ ...authForm, region: event.target.value })} placeholder="Judet / regiune" /></label>
           </>}
           {authError && <p className="auth-feedback error">{authError}</p>}
           {authMessage && <p className="auth-feedback success">{authMessage}</p>}
-          <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Se proceseaza...' : { login: 'Intra in cont', register: 'Creeaza cont', verify: 'Verifică emailul', forgot: 'Trimite codul', reset: 'Schimbă parola' }[authMode]}</button>
+          <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Se proceseaza...' : { login: 'Intra in cont', register: 'Creeaza cont', verify: 'Verifică emailul', forgot: 'Trimite codul', reset: 'Schimbă parola', google: 'Creează contul' }[authMode]}</button>
         </form>
+        {(authMode === 'login' || authMode === 'register') && isGoogleSignInEnabled && <>
+          <div className="auth-divider"><span>sau</span></div>
+          <GoogleSignInButton text={authMode === 'login' ? 'signin_with' : 'signup_with'} onCredential={(credential) => void signInWithGoogle(credential)} />
+        </>}
         <div className="auth-links">
           {authMode === 'login' && <button type="button" className="text-button" onClick={() => openAuth('forgot')}>Ai uitat parola?</button>}
           {authMode === 'verify' && <button type="button" className="text-button" disabled={!authForm.email} onClick={() => void resendVerificationCode()}>Retrimite codul</button>}
           {authMode === 'reset' && <button type="button" className="text-button" onClick={() => openAuth('forgot')}>Nu ai primit codul?</button>}
-          {(authMode === 'verify' || authMode === 'forgot' || authMode === 'reset') && <button type="button" className="text-button" onClick={() => openAuth('login')}>Înapoi la autentificare</button>}
+          {(authMode === 'verify' || authMode === 'forgot' || authMode === 'reset' || authMode === 'google') && <button type="button" className="text-button" onClick={() => openAuth('login')}>Înapoi la autentificare</button>}
         </div>
       </section></div>}
 
