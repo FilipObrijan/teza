@@ -146,6 +146,19 @@ export default function Messenger({ user }: { user: AuthUser }) {
       </header>
 
       <div className="messenger-body">
+        <aside className="messenger-list" aria-label="Conversații">
+          {conversations.map((conversation) => (
+            <button type="button" key={conversation.id} className={`messenger-list-item${conversation.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(conversation.id)}>
+              <span className="messenger-avatar">{conversation.partnerName.slice(0, 1).toUpperCase() || '?'}</span>
+              <span className="messenger-list-text">
+                <strong>{conversation.partnerName}</strong>
+                <small>{conversation.productName} / {conversation.variety}</small>
+                <small className={orderStatusClass(conversation.status)}>{orderStatusLabel(conversation.status)}</small>
+              </span>
+            </button>
+          ))}
+        </aside>
+
         <div className="messenger-thread">
           {active ? <>
             <div className="messenger-thread-head">
@@ -182,19 +195,6 @@ export default function Messenger({ user }: { user: AuthUser }) {
             </form>
           </> : <p className="messenger-empty messenger-placeholder">Alege o conversație din listă.</p>}
         </div>
-
-        <aside className="messenger-list" aria-label="Conversații">
-          {conversations.map((conversation) => (
-            <button type="button" key={conversation.id} className={`messenger-list-item${conversation.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(conversation.id)}>
-              <span className="messenger-avatar">{conversation.partnerName.slice(0, 1).toUpperCase() || '?'}</span>
-              <span className="messenger-list-text">
-                <strong>{conversation.partnerName}</strong>
-                <small>{conversation.productName} / {conversation.variety}</small>
-                <small className={orderStatusClass(conversation.status)}>{orderStatusLabel(conversation.status)}</small>
-              </span>
-            </button>
-          ))}
-        </aside>
       </div>
     </section>
   );
