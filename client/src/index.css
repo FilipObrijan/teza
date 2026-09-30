@@ -134,7 +134,14 @@ h3 { margin: 0 0 4px; font-size: 1.55rem; letter-spacing: -.055em; }
 .messenger-body { display: grid; grid-template-columns: 270px minmax(0, 1fr); flex: 1; min-height: 0; }
 .messenger-thread { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #f7f5ef; }
 .messenger-thread-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e5e4da; background: #fff; }
-.messenger-thread-head > span:last-child { flex-shrink: 0; font-size: .68rem; font-weight: 700; }
+.messenger-thread-status { flex-shrink: 0; font-size: .68rem; font-weight: 700; }
+.messenger-delete { flex-shrink: 0; color: #8a8f86; }
+.messenger-delete:hover { color: #a64034; background: #f6e5df; }
+.messenger-confirm { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 12px 16px; border-bottom: 1px solid #efd3c9; background: #fbeee9; }
+.messenger-confirm p { flex: 1 1 260px; margin: 0; color: #5e675f; font-size: .78rem; line-height: 1.45; }
+.messenger-confirm p strong { color: #a64034; }
+.messenger-confirm div { display: flex; gap: 8px; }
+.messenger-confirm button { border: 0; padding: 9px 14px; font-size: .74rem; font-weight: 700; }
 .messenger-back { display: none; color: #263b30; }
 .messenger-thread-title { flex: 1; min-width: 0; }
 .messenger-thread-title strong, .messenger-thread-title small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

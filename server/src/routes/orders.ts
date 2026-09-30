@@ -56,7 +56,8 @@ router.get('/conversations', requireAuth, requireRole(['seller', 'distributor'])
                    SELECT COUNT(*)::int FROM order_messages m
                    WHERE m.order_id = o.id AND m.sender_id <> $1 AND (r.last_read_at IS NULL OR m.created_at > r.last_read_at)
                  ) AS unread_count,
-                 (SELECT MAX(m.created_at) FROM order_messages m WHERE m.order_id = o.id) AS last_message_at
+                 (SELECT MAX(m.created_at) FROM order_messages m WHERE m.order_id = o.id) AS last_message_at,
+                 r.hidden_at
           FROM orders o
           JOIN product_listings pl ON pl.id = o.listing_id
           JOIN users seller ON seller.id = pl.seller_id
@@ -64,6 +65,8 @@ router.get('/conversations', requireAuth, requireRole(['seller', 'distributor'])
           LEFT JOIN order_message_reads r ON r.order_id = o.id AND r.user_id = $1
           WHERE pl.seller_id = $1 OR o.distributor_id = $1
         ) conversations
+        -- O conversație ștearsă reapare doar dacă partenerul scrie din nou după ștergere.
+        WHERE hidden_at IS NULL OR last_message_at > hidden_at
         ORDER BY COALESCE(last_message_at, created_at) DESC
       `,
       [req.user?.sub],
@@ -83,6 +86,31 @@ router.get('/conversations', requireAuth, requireRole(['seller', 'distributor'])
   } catch (error) {
     console.error('List conversations error:', error);
     return res.status(500).json({ message: 'Eroare la încărcarea conversațiilor.' });
+  }
+});
+
+// Șterge conversația doar pentru utilizatorul curent; partenerul își păstrează mesajele.
+router.delete('/:id/conversation', requireAuth, requireRole(['seller', 'distributor']), async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success || !req.user || req.user.role === 'admin') {
+    return res.status(400).json({ message: 'ID sau participant invalid.' });
+  }
+
+  try {
+    const order = await getOrderParticipant(idResult.data, req.user.sub, req.user.role);
+    if (!order) return res.status(404).json({ message: 'Conversația nu a fost găsită.' });
+
+    await pool.query(
+      `
+        INSERT INTO order_message_reads (order_id, user_id, last_read_at, hidden_at) VALUES ($1, $2, NOW(), NOW())
+        ON CONFLICT (order_id, user_id) DO UPDATE SET last_read_at = NOW(), hidden_at = NOW()
+      `,
+      [idResult.data, req.user.sub],
+    );
+    return res.status(204).end();
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    return res.status(500).json({ message: 'Eroare la ștergerea conversației.' });
   }
 });
 
@@ -255,9 +283,14 @@ router.get('/:id/messages', requireAuth, requireRole(['seller', 'distributor']),
         FROM order_messages om
         JOIN users u ON u.id = om.sender_id
         WHERE om.order_id = $1
+          -- Dacă utilizatorul și-a șters conversația, vede doar mesajele de după ștergere.
+          AND om.created_at > COALESCE(
+            (SELECT hidden_at FROM order_message_reads WHERE order_id = $1 AND user_id = $2),
+            '-infinity'::timestamptz
+          )
         ORDER BY om.created_at ASC
       `,
-      [idResult.data],
+      [idResult.data, req.user.sub],
     );
     return res.status(200).json({ messages: result.rows.map((message) => ({ id: message.id, content: message.content, senderId: message.sender_id, senderName: message.sender_name, createdAt: message.created_at })) });
   } catch (error) {

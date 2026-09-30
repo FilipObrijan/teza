@@ -74,6 +74,7 @@ CREATE TABLE order_message_reads (
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  hidden_at TIMESTAMPTZ,
   PRIMARY KEY (order_id, user_id)
 );
 

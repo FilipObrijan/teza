@@ -28,6 +28,8 @@ export default function Messenger({ user }: { user: AuthUser }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const active = conversations.find((conversation) => conversation.id === activeId) ?? null;
@@ -84,6 +86,7 @@ export default function Messenger({ user }: { user: AuthUser }) {
 
     setMessages([]);
     setError('');
+    setIsConfirmingDelete(false);
     void loadMessages(true);
     const timer = window.setInterval(() => void loadMessages(false), 5000);
     return () => {
@@ -137,7 +140,29 @@ export default function Messenger({ user }: { user: AuthUser }) {
   };
 
   // Bula apare doar după ce există cel puțin o comandă, deci cel puțin o conversație.
-  if (conversations.length === 0) return null;
+  const deleteConversation = async () => {
+    if (!activeId) return;
+    setIsDeleting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/api/orders/${activeId}/conversation`, { method: 'DELETE', headers: authHeaders() });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message ?? 'Nu am putut șterge conversația.');
+      }
+      setConversations((current) => current.filter((conversation) => conversation.id !== activeId));
+      setActiveId(null);
+      setIsConfirmingDelete(false);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Eroare la ștergerea conversației.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Cu fereastra închisă, bula apare doar dacă există cel puțin o conversație.
+  if (conversations.length === 0 && !isOpen) return null;
 
   if (!isOpen) {
     return (
@@ -157,6 +182,7 @@ export default function Messenger({ user }: { user: AuthUser }) {
 
       <div className="messenger-body">
         <aside className="messenger-list" aria-label="Conversații">
+          {conversations.length === 0 && <p className="messenger-empty">Nu mai ai conversații.</p>}
           {conversations.map((conversation) => (
             <button type="button" key={conversation.id} className={`messenger-list-item${conversation.id === activeId ? ' active' : ''}${badgeCount(conversation) > 0 ? ' unread' : ''}`} onClick={() => setActiveId(conversation.id)}>
               <span className="messenger-avatar">{conversation.partnerName.slice(0, 1).toUpperCase() || '?'}</span>
@@ -180,8 +206,19 @@ export default function Messenger({ user }: { user: AuthUser }) {
                 <strong>{active.partnerName}</strong>
                 <small>{active.productName} / {active.variety}</small>
               </div>
-              <span className={orderStatusClass(active.status)}>{orderStatusLabel(active.status)}</span>
+              <span className={`messenger-thread-status ${orderStatusClass(active.status)}`}>{orderStatusLabel(active.status)}</span>
+              <button type="button" className="messenger-icon-button messenger-delete" onClick={() => setIsConfirmingDelete(true)} aria-label="Șterge conversația" title="Șterge conversația">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm4 2v8h2v-8h-2Zm4 0v8h2v-8h-2Z" /></svg>
+              </button>
             </div>
+
+            {isConfirmingDelete && <div className="messenger-confirm" role="alertdialog" aria-label="Confirmă ștergerea conversației">
+              <p><strong>Ștergi conversația?</strong> Mesajele dispar doar pentru tine; {active.partnerName} le păstrează. Comanda nu se șterge.</p>
+              <div>
+                <button type="button" className="cancel-action" onClick={() => setIsConfirmingDelete(false)} disabled={isDeleting}>Renunță</button>
+                <button type="button" className="confirm-action" onClick={() => void deleteConversation()} disabled={isDeleting}>{isDeleting ? 'Se șterge...' : 'Șterge'}</button>
+              </div>
+            </div>}
 
             <div className="messenger-messages">
               {isLoading ? <p className="messenger-empty">Se încarcă mesajele...</p>
@@ -205,7 +242,7 @@ export default function Messenger({ user }: { user: AuthUser }) {
                 <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z" /></svg>
               </button>
             </form>
-          </> : <p className="messenger-empty messenger-placeholder">Alege o conversație din listă.</p>}
+          </> : <p className="messenger-empty messenger-placeholder">{conversations.length === 0 ? 'Nu mai ai conversații.' : 'Alege o conversație din listă.'}</p>}
         </div>
       </div>
     </section>

@@ -55,6 +55,9 @@ export async function migrate() {
     `);
   }
 
+  // Momentul în care utilizatorul și-a șters conversația; mesajele de dinainte nu i se mai arată.
+  await pool.query('ALTER TABLE order_message_reads ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ');
+
   if (env.adminEmail && env.adminPassword) {
     await pool.query(
       `
