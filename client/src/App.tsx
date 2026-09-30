@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+import Messenger from './Messenger';
+import { API_BASE, AuthUser, orderStatusClass, orderStatusLabel } from './shared';
 
 type Listing = {
   id: string;
@@ -30,26 +30,7 @@ const formatDisplayDate = (value: unknown) => {
   return raw;
 };
 
-const orderStatusLabel = (status: string) => ({
-  pending: 'În așteptare',
-  confirmed: 'Acceptat',
-  rejected: 'Refuzat',
-  cancelled: 'Comandă anulată',
-  completed: 'Finalizată',
-}[status] ?? status);
-
-const orderStatusClass = (status: string) =>
-  `status-${status === 'confirmed' ? 'active' : status === 'rejected' || status === 'cancelled' ? 'rejected' : 'pending'}`;
-
 type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
-
-type AuthUser = {
-  id: string;
-  fullName: string;
-  email: string;
-  role: 'seller' | 'distributor' | 'admin';
-  status: string;
-};
 
 type PendingUser = AuthUser & {
   phone?: string;
@@ -76,7 +57,6 @@ type DashboardData = {
   receivedOrders?: Array<{ id: string; productName: string; variety: string; distributorName: string; distributorEmail?: string | null; distributorPhone?: string | null; quantityKg: number; unitPrice: number; totalAmount: number; status: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed'; notes?: string | null; createdAt: string }>;
 };
 
-type ChatMessage = { id: string; content: string; senderId: string; senderName: string; createdAt: string };
 type EditableOrder = { id: string; productName: string; quantityKg: number; availableQuantityKg: number; status: string };
 
 function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => void }) {
@@ -93,12 +73,6 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
   const [activeOrderMenuId, setActiveOrderMenuId] = useState<string | null>(null);
   const [activeReceivedOrderMenuId, setActiveReceivedOrderMenuId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{ message: string; action: () => Promise<void> } | null>(null);
-  const [activeChatOrderId, setActiveChatOrderId] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatDraft, setChatDraft] = useState('');
-  const [chatError, setChatError] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [isChatSending, setIsChatSending] = useState(false);
   const [editingOrder, setEditingOrder] = useState<EditableOrder | null>(null);
   const [editedOrderQuantity, setEditedOrderQuantity] = useState('');
   const [editedOrderNotes, setEditedOrderNotes] = useState('');
@@ -294,47 +268,6 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     }
   };
 
-  const openOrderChat = async (orderId: string) => {
-    setActiveChatOrderId(orderId);
-    setChatMessages([]);
-    setChatError('');
-    setIsChatLoading(true);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/orders/${orderId}/messages`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` } });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? 'Nu am putut încărca mesajele.');
-      setChatMessages(data.messages as ChatMessage[]);
-    } catch (error) {
-      setChatError(error instanceof Error ? error.message : 'Eroare la încărcarea mesajelor.');
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
-  const sendChatMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!activeChatOrderId || !chatDraft.trim()) return;
-    setIsChatSending(true);
-    setChatError('');
-
-    try {
-      const response = await fetch(`${API_BASE}/api/orders/${activeChatOrderId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` },
-        body: JSON.stringify({ content: chatDraft }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? 'Nu am putut trimite mesajul.');
-      setChatMessages((messages) => [...messages, { ...data.message, senderId: user.id, senderName: user.fullName }]);
-      setChatDraft('');
-    } catch (error) {
-      setChatError(error instanceof Error ? error.message : 'Eroare la trimiterea mesajului.');
-    } finally {
-      setIsChatSending(false);
-    }
-  };
-
   useEffect(() => {
     loadDashboard();
     const refreshTimer = window.setInterval(loadDashboard, 5000);
@@ -384,10 +317,6 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
   const sellerListings = dashboard?.listings ?? [];
   const distributorOrders = dashboard?.orders ?? [];
   const receivedOrders = dashboard?.receivedOrders ?? [];
-  // Fiecare comandă are propria conversație între vânzător și distribuitor.
-  const conversations = isSeller
-    ? receivedOrders.map((order) => ({ id: order.id, productName: order.productName, variety: order.variety, partnerName: order.distributorName, status: order.status }))
-    : distributorOrders.map((order) => ({ id: order.id, productName: order.productName, variety: order.variety, partnerName: order.sellerName, status: order.status }));
   const handleViewAllOrders = () => {
     if (distributorOrders.length === 0) {
       onBack();
@@ -401,7 +330,6 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     <section className="dashboard-shell">
       {editingOrder && <div className="modal-backdrop" onClick={() => setEditingOrder(null)}><section className="listing-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => setEditingOrder(null)} aria-label="Inchide">x</button><p className="kicker">Editează comanda</p><h2>{editingOrder.productName}</h2><p>Modifică detaliile și retrimite comanda către vânzător.</p><p className="dashboard-muted">Stoc disponibil acum: {editingOrder.availableQuantityKg.toLocaleString('ro-RO')} kg</p><form className="listing-form" onSubmit={submitOrderEdit}><label>Cantitate dorită (kg)<input required min="0.01" max={editingOrder.availableQuantityKg} step="0.01" type="number" value={editedOrderQuantity} onChange={(event) => setEditedOrderQuantity(event.target.value)} /></label><label>Mesaj pentru vânzător <span className="optional-label">(opțional)</span><textarea value={editedOrderNotes} onChange={(event) => setEditedOrderNotes(event.target.value)} placeholder="Scrie un mesaj despre comandă..." /></label><button className="primary-action" type="submit" disabled={isOrderEditing}>{isOrderEditing ? 'Se salvează...' : 'Salvează și retrimite'}</button></form></section></div>}
       {confirmation && <div className="confirmation-backdrop" role="presentation"><section className="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="confirmation-title"><span className="confirmation-mark">!</span><p className="kicker">Confirmă acțiunea</p><h2 id="confirmation-title">Ești sigur?</h2><p>{confirmation.message}</p><div className="confirmation-actions"><button type="button" className="cancel-action" onClick={() => setConfirmation(null)}>Renunță</button><button type="button" className="confirm-action" onClick={async () => { const action = confirmation.action; setConfirmation(null); await action(); }}>Confirmă</button></div></section></div>}
-      {activeChatOrderId && <div className="modal-backdrop" onClick={() => setActiveChatOrderId(null)}><section className="chat-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => setActiveChatOrderId(null)} aria-label="Inchide">x</button><p className="kicker">Conversație securizată</p><h2>Mesaje despre comandă</h2><div className="chat-messages">{isChatLoading ? <p className="dashboard-muted">Se încarcă mesajele...</p> : chatMessages.length === 0 ? <p className="dashboard-muted">Niciun mesaj încă. Scrie primul mesaj.</p> : chatMessages.map((message) => <article className={message.senderId === user.id ? 'chat-message own' : 'chat-message'} key={message.id}><strong>{message.senderName}</strong><p>{message.content}</p></article>)}</div>{chatError && <p className="auth-feedback error">{chatError}</p>}<form className="chat-form" onSubmit={sendChatMessage}><input required maxLength={2000} value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder="Scrie un mesaj..." /><button type="submit" disabled={isChatSending}>{isChatSending ? '...' : 'Trimite'}</button></form></section></div>}
       <div className="dashboard-header">
         <div><button className="back-link" onClick={onBack}>&lt;- Catalog</button><p className="kicker">Cabinet personal</p><h1>{isSeller ? 'Spatiul tau de vanzator.' : 'Spatiul tau de distribuitor.'}</h1><p className="dashboard-description">{isSeller ? 'Gestioneaza-ti ofertele, stocul si comenzile primite dintr-un singur loc.' : 'Urmareste comenzile, descopera oferte si tine aproape furnizorii preferati.'}</p></div>
         <div className="profile-chip"><span className="profile-avatar">{user.fullName.slice(0, 1).toUpperCase()}</span><div><strong>{user.fullName}</strong><span>{isSeller ? 'Vanzator' : 'Distribuitor'}</span></div></div>
@@ -421,7 +349,6 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
           {dashboard && !isSeller && distributorOrders.length === 0 && <div className="empty-dashboard"><strong>Nu ai încă comenzi.</strong><span>Explorează catalogul pentru a găsi produsele potrivite.</span><button className="empty-action" onClick={onBack}>Explorează catalogul <span>-&gt;</span></button></div>}
           {dashboard && !isSeller && distributorOrders.length > 0 && <div className="activity-table">{distributorOrders.slice(0, showAllOrders ? undefined : 10).map((order) => <div className="table-row" key={order.id}><span><strong>#{order.id.slice(0, 8)}</strong><small>{order.productName} / {order.quantityKg.toLocaleString('ro-RO')} kg</small></span><span>{order.sellerName}</span><span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span><div className="row-menu-wrap"><button type="button" className="row-more order-more" aria-label="Mai multe opțiuni pentru comandă" aria-expanded={activeOrderMenuId === order.id} onClick={() => setActiveOrderMenuId(activeOrderMenuId === order.id ? null : order.id)}>...</button>{activeOrderMenuId === order.id && <div className="listing-menu order-menu"><button type="button" className="menu-action" onClick={() => void cancelOrder(order.id)}>Anulează comanda</button><button type="button" className="menu-action" onClick={() => openEditOrder(order)}>Editează comanda</button><button type="button" className="menu-action danger" onClick={() => void deleteOrder(order.id)}>Șterge din istoric</button></div>}</div></div>)}</div>}
         </section>
-        {dashboard && <section className="dashboard-panel" id="mesaje"><div className="panel-heading"><div><p className="kicker">Conversații</p><h2>Mesaje</h2></div></div>{conversations.length === 0 ? <p className="dashboard-muted">Nu ai încă conversații. O conversație apare automat când este plasată o comandă.</p> : <div className="activity-table">{conversations.map((conversation) => <div className="conversation-row" key={conversation.id}><div><strong>{conversation.productName} / {conversation.variety}</strong><small>{isSeller ? 'Distribuitor' : 'Vânzător'}: {conversation.partnerName}</small></div><span className={orderStatusClass(conversation.status)}>{orderStatusLabel(conversation.status)}</span><button type="button" className="panel-action" onClick={() => void openOrderChat(conversation.id)}>Deschide conversația</button></div>)}</div>}</section>}
       </div>
       {isListingFormOpen && <div className="modal-backdrop" onClick={() => { resetListingForm(); setIsListingFormOpen(false); }}><section className="listing-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => { resetListingForm(); setIsListingFormOpen(false); }} aria-label="Inchide">x</button><p className="kicker">{editingListingId ? 'Editeaza anuntul' : 'Oferta noua'}</p><h2>{editingListingId ? 'Modifica anuntul.' : 'Adauga un anunt.'}</h2><p>{editingListingId ? 'Actualizeaza detaliile existente si salveaza modificarile.' : 'Completeaza datele produsului pe care vrei sa il oferi.'}</p><form className="listing-form" onSubmit={submitListing}><label>Fotografie produs<span className="optional-label">{editingListingId ? ' (opțional)' : ' (obligatorie)'}</span><input required={!editingListingId} accept="image/*" type="file" onChange={(event) => setListingForm({ ...listingForm, image: event.target.files?.[0] ?? null })} /></label><label>Produs<input required value={listingForm.productName} onChange={(event) => setListingForm({ ...listingForm, productName: event.target.value })} placeholder="Ex: Rosii" /></label><label>Soi / varietate<input required value={listingForm.variety} onChange={(event) => setListingForm({ ...listingForm, variety: event.target.value })} placeholder="Ex: Cherry premium" /></label><div className="form-row"><label>Cantitate (kg)<input required min="0.01" step="0.01" type="number" value={listingForm.quantityKg} onChange={(event) => setListingForm({ ...listingForm, quantityKg: event.target.value })} /></label><label>Pret / kg<input required min="0" step="0.01" type="number" value={listingForm.pricePerKg} onChange={(event) => setListingForm({ ...listingForm, pricePerKg: event.target.value })} /></label></div><label>Regiune<input required value={listingForm.region} onChange={(event) => setListingForm({ ...listingForm, region: event.target.value })} placeholder="Ex: Cluj" /></label><div className="form-row"><label>Data recoltei<input type="date" value={listingForm.harvestDate || ''} onChange={(event) => setListingForm({ ...listingForm, harvestDate: event.target.value })} /></label><label>Unitate<select value={listingForm.unitMeasure} onChange={(event) => setListingForm({ ...listingForm, unitMeasure: event.target.value })}><option value="kg">kg</option><option value="tona">tona</option><option value="lada">lada</option></select></label></div><label>Termeni de livrare<input value={listingForm.deliveryTerms || ''} onChange={(event) => setListingForm({ ...listingForm, deliveryTerms: event.target.value })} placeholder="Ex: Livrare in 24h" /></label>{listingError && <p className="auth-feedback error">{listingError}</p>}<button className="primary-action" type="submit" disabled={isListingSubmitting}>{isListingSubmitting ? 'Se salveaza...' : editingListingId ? 'Salveaza modificarile' : 'Publica anuntul'}</button></form></section></div>}
     </section>
@@ -840,6 +767,8 @@ export default function App() {
         <p className="admin-section-label">Anunțuri</p>
         {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small></div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
       </section></div>}
+
+      {authUser && authUser.role !== 'admin' && <Messenger key={authUser.id} user={authUser} />}
     </main>
   );
 }
