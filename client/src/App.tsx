@@ -76,6 +76,33 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
   // Erorile acțiunilor (ștergere, anulare etc.) apar ca notificare jos pe ecran, lângă locul unde s-a apăsat.
   const [actionError, setActionError] = useState('');
 
+  // Meniurile „⋯” se închid la un click/atingere în afara lor sau la Esc.
+  const isAnyMenuOpen = Boolean(activeMenuId || activeOrderMenuId || activeReceivedOrderMenuId);
+  useEffect(() => {
+    if (!isAnyMenuOpen) return;
+
+    const closeMenus = () => {
+      setActiveMenuId(null);
+      setActiveOrderMenuId(null);
+      setActiveReceivedOrderMenuId(null);
+    };
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const wrap = (event.target as Element | null)?.closest('.row-menu-wrap');
+      // Un click în meniul deschis (sau pe „⋯”-ul lui) e tratat de butoanele lui; orice altceva închide meniul.
+      if (!wrap?.querySelector('.listing-menu')) closeMenus();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenus();
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isAnyMenuOpen]);
+
   useEffect(() => {
     if (!actionError) return;
     const timer = window.setTimeout(() => setActionError(''), 6000);
