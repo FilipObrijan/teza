@@ -32,6 +32,78 @@ const getOrderParticipant = async (orderId: string, userId: string, role: 'selle
   return result.rows[0] as { id: string; distributor_id: string; seller_id: string } | undefined;
 };
 
+// Tot ce a primit utilizatorul până acum în conversație devine citit.
+const markConversationRead = (orderId: string, userId: string) =>
+  pool.query(
+    `
+      INSERT INTO order_message_reads (order_id, user_id, last_read_at) VALUES ($1, $2, NOW())
+      ON CONFLICT (order_id, user_id) DO UPDATE SET last_read_at = NOW()
+    `,
+    [orderId, userId],
+  );
+
+// Conversațiile utilizatorului (una per comandă), cele cu activitate recentă primele.
+// isNew = conversația n-a fost încă deschisă; unreadCount = mesajele partenerului de după ultima citire.
+router.get('/conversations', requireAuth, requireRole(['seller', 'distributor']), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        SELECT * FROM (
+          SELECT o.id, o.status, o.created_at, pl.product_name, pl.variety,
+                 CASE WHEN pl.seller_id = $1 THEN distributor.full_name ELSE seller.full_name END AS partner_name,
+                 r.last_read_at IS NULL AS is_new,
+                 (
+                   SELECT COUNT(*)::int FROM order_messages m
+                   WHERE m.order_id = o.id AND m.sender_id <> $1 AND (r.last_read_at IS NULL OR m.created_at > r.last_read_at)
+                 ) AS unread_count,
+                 (SELECT MAX(m.created_at) FROM order_messages m WHERE m.order_id = o.id) AS last_message_at
+          FROM orders o
+          JOIN product_listings pl ON pl.id = o.listing_id
+          JOIN users seller ON seller.id = pl.seller_id
+          JOIN users distributor ON distributor.id = o.distributor_id
+          LEFT JOIN order_message_reads r ON r.order_id = o.id AND r.user_id = $1
+          WHERE pl.seller_id = $1 OR o.distributor_id = $1
+        ) conversations
+        ORDER BY COALESCE(last_message_at, created_at) DESC
+      `,
+      [req.user?.sub],
+    );
+
+    return res.status(200).json({
+      conversations: result.rows.map((row) => ({
+        id: row.id,
+        productName: row.product_name,
+        variety: row.variety,
+        partnerName: row.partner_name,
+        status: row.status,
+        isNew: row.is_new,
+        unreadCount: row.unread_count,
+      })),
+    });
+  } catch (error) {
+    console.error('List conversations error:', error);
+    return res.status(500).json({ message: 'Eroare la încărcarea conversațiilor.' });
+  }
+});
+
+router.post('/:id/read', requireAuth, requireRole(['seller', 'distributor']), async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success || !req.user || req.user.role === 'admin') {
+    return res.status(400).json({ message: 'ID sau participant invalid.' });
+  }
+
+  try {
+    const order = await getOrderParticipant(idResult.data, req.user.sub, req.user.role);
+    if (!order) return res.status(404).json({ message: 'Comanda nu a fost găsită.' });
+
+    await markConversationRead(idResult.data, req.user.sub);
+    return res.status(204).end();
+  } catch (error) {
+    console.error('Mark conversation read error:', error);
+    return res.status(500).json({ message: 'Eroare la marcarea conversației ca citită.' });
+  }
+});
+
 router.post('/', requireAuth, requireRole(['distributor']), async (req, res) => {
   const input = createOrderSchema.safeParse(req.body);
 
@@ -74,6 +146,9 @@ router.post('/', requireAuth, requireRole(['distributor']), async (req, res) => 
       `,
       [req.user?.sub, input.data.listingId, input.data.quantityKg, listing.price_per_kg, input.data.notes ?? null],
     );
+
+    // Pentru distribuitor conversația nu e „nouă”: el a creat comanda. Pentru vânzător rămâne nouă până o deschide.
+    await client.query('INSERT INTO order_message_reads (order_id, user_id) VALUES ($1, $2)', [result.rows[0].id, req.user?.sub]);
 
     await client.query('COMMIT');
     notifySellerOrder(result.rows[0].id);
@@ -277,6 +352,8 @@ router.post('/:id/messages', requireAuth, requireRole(['seller', 'distributor'])
       `,
       [idResult.data, req.user.sub, receiverId, input.data.content],
     );
+    // Cine răspunde a văzut, evident, conversația.
+    await markConversationRead(idResult.data, req.user.sub);
     return res.status(201).json({ message: result.rows[0] });
   } catch (error) {
     console.error('Create order message error:', error);

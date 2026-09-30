@@ -157,7 +157,11 @@ h3 { margin: 0 0 4px; font-size: 1.55rem; letter-spacing: -.055em; }
 .messenger-list-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #f0eee6; background: transparent; text-align: left; }
 .messenger-list-item:hover { background: #f7f5ef; }
 .messenger-list-item.active { background: #f9e9e2; box-shadow: inset 3px 0 0 #d85f36; }
-.messenger-list-text { min-width: 0; }
+.messenger-list-text { flex: 1; min-width: 0; }
+.messenger-list-item.unread .messenger-list-text strong { font-weight: 800; }
+.messenger-list-item.unread .messenger-list-text small:first-of-type { color: #263b30; }
+.messenger-unread { display: grid; place-items: center; flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; color: #fff; background: #d85f36; font-size: .68rem; font-weight: 700; }
+.messenger-new { background: #39704a; font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; }
 .messenger-list-text strong, .messenger-list-text small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .messenger-list-text strong { color: #263b30; font-size: .82rem; }
 .messenger-list-text small { margin-top: 2px; color: #8a8f86; font-size: .7rem; }

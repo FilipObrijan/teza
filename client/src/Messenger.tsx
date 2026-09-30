@@ -4,9 +4,11 @@ import { API_BASE, AuthUser, authHeaders, orderStatusClass, orderStatusLabel } f
 type ChatMessage = { id: string; content: string; senderId: string; senderName: string; createdAt: string };
 
 // Fiecare comandă are propria conversație între vânzător și distribuitor.
-type Conversation = { id: string; productName: string; variety: string; partnerName: string; status: string };
+type Conversation = { id: string; productName: string; variety: string; partnerName: string; status: string; isNew: boolean; unreadCount: number };
 
-type DashboardOrder = { id: string; productName: string; variety: string; status: string; sellerName?: string; distributorName?: string };
+// Pe insignă contează mesajele necitite; o conversație nouă, încă nedeschisă și fără mesaje, contează ca 1.
+const badgeCount = (conversation: Conversation) =>
+  conversation.unreadCount > 0 ? conversation.unreadCount : conversation.isNew ? 1 : 0;
 
 const formatMessageTime = (value: string) => {
   const date = new Date(value);
@@ -18,7 +20,6 @@ const formatMessageTime = (value: string) => {
 const isNarrowScreen = () => window.matchMedia('(max-width: 640px)').matches;
 
 export default function Messenger({ user }: { user: AuthUser }) {
-  const isSeller = user.role === 'seller';
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -30,21 +31,15 @@ export default function Messenger({ user }: { user: AuthUser }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const active = conversations.find((conversation) => conversation.id === activeId) ?? null;
+  const totalUnread = conversations.reduce((sum, conversation) => sum + badgeCount(conversation), 0);
 
   useEffect(() => {
     const loadConversations = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/dashboard/me`, { headers: authHeaders() });
+        const response = await fetch(`${API_BASE}/api/orders/conversations`, { headers: authHeaders() });
         if (!response.ok) return;
         const data = await response.json();
-        const orders: DashboardOrder[] = (isSeller ? data.receivedOrders : data.orders) ?? [];
-        setConversations(orders.map((order) => ({
-          id: order.id,
-          productName: order.productName,
-          variety: order.variety,
-          partnerName: (isSeller ? order.distributorName : order.sellerName) ?? '',
-          status: order.status,
-        })));
+        setConversations(data.conversations as Conversation[]);
       } catch {
         // Serverul poate fi temporar indisponibil; reîncercăm la următorul interval.
       }
@@ -53,7 +48,16 @@ export default function Messenger({ user }: { user: AuthUser }) {
     void loadConversations();
     const timer = window.setInterval(loadConversations, 10000);
     return () => window.clearInterval(timer);
-  }, [isSeller]);
+  }, []);
+
+  const markRead = async (orderId: string) => {
+    setConversations((current) => current.map((conversation) => (conversation.id === orderId ? { ...conversation, isNew: false, unreadCount: 0 } : conversation)));
+    try {
+      await fetch(`${API_BASE}/api/orders/${orderId}/read`, { method: 'POST', headers: authHeaders() });
+    } catch {
+      // Dacă nu reușește, conversația apare din nou ca necitită la următoarea încărcare.
+    }
+  };
 
   // Conversația deschisă se reîncarcă periodic, ca mesajele noi să apară fără redeschidere.
   useEffect(() => {
@@ -66,7 +70,11 @@ export default function Messenger({ user }: { user: AuthUser }) {
         const response = await fetch(`${API_BASE}/api/orders/${activeId}/messages`, { headers: authHeaders() });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message ?? 'Nu am putut încărca mesajele.');
-        if (!cancelled) setMessages(data.messages as ChatMessage[]);
+        if (!cancelled) {
+          setMessages(data.messages as ChatMessage[]);
+          // Conversația e pe ecran, deci tot ce s-a încărcat a fost văzut.
+          void markRead(activeId);
+        }
       } catch (loadError) {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Eroare la încărcarea mesajelor.');
       } finally {
@@ -99,8 +107,10 @@ export default function Messenger({ user }: { user: AuthUser }) {
 
   const openMessenger = () => {
     setIsOpen(true);
-    // Pe ecrane late deschidem direct prima conversație; pe telefon arătăm întâi lista.
-    if (!activeId && conversations.length > 0 && !isNarrowScreen()) setActiveId(conversations[0].id);
+    // Pe ecrane late deschidem direct o conversație (întâi una cu mesaje necitite); pe telefon arătăm întâi lista.
+    if (!activeId && conversations.length > 0 && !isNarrowScreen()) {
+      setActiveId((conversations.find((conversation) => badgeCount(conversation) > 0) ?? conversations[0]).id);
+    }
   };
 
   const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
@@ -131,9 +141,9 @@ export default function Messenger({ user }: { user: AuthUser }) {
 
   if (!isOpen) {
     return (
-      <button type="button" className="messenger-fab" onClick={openMessenger} aria-label={`Deschide mesajele (${conversations.length} conversații)`}>
+      <button type="button" className="messenger-fab" onClick={openMessenger} aria-label={totalUnread > 0 ? `Deschide mesajele (${totalUnread} necitite)` : 'Deschide mesajele'}>
         <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.9 2 11.7c0 2.6 1.3 4.9 3.4 6.5L4.6 21.5a.5.5 0 0 0 .7.6l3.8-1.9c.9.2 1.9.3 2.9.3 5.5 0 10-3.9 10-8.8S17.5 3 12 3Z" /></svg>
-        <span className="messenger-fab-count">{conversations.length}</span>
+        {totalUnread > 0 && <span className="messenger-fab-count">{totalUnread > 99 ? '99+' : totalUnread}</span>}
       </button>
     );
   }
@@ -148,13 +158,15 @@ export default function Messenger({ user }: { user: AuthUser }) {
       <div className="messenger-body">
         <aside className="messenger-list" aria-label="Conversații">
           {conversations.map((conversation) => (
-            <button type="button" key={conversation.id} className={`messenger-list-item${conversation.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(conversation.id)}>
+            <button type="button" key={conversation.id} className={`messenger-list-item${conversation.id === activeId ? ' active' : ''}${badgeCount(conversation) > 0 ? ' unread' : ''}`} onClick={() => setActiveId(conversation.id)}>
               <span className="messenger-avatar">{conversation.partnerName.slice(0, 1).toUpperCase() || '?'}</span>
               <span className="messenger-list-text">
                 <strong>{conversation.partnerName}</strong>
                 <small>{conversation.productName} / {conversation.variety}</small>
                 <small className={orderStatusClass(conversation.status)}>{orderStatusLabel(conversation.status)}</small>
               </span>
+              {conversation.unreadCount > 0 ? <span className="messenger-unread" aria-label={`${conversation.unreadCount} mesaje necitite`}>{conversation.unreadCount}</span>
+                : conversation.isNew && <span className="messenger-unread messenger-new">Nou</span>}
             </button>
           ))}
         </aside>

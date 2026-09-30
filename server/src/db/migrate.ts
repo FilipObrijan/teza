@@ -35,6 +35,26 @@ export async function migrate() {
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id)');
 
+  // Până unde a citit fiecare participant fiecare conversație (pentru mesajele necitite).
+  const readsTable = await pool.query(`SELECT to_regclass('public.order_message_reads') AS table_name`);
+  if (!readsTable.rows[0].table_name) {
+    await pool.query(`
+      CREATE TABLE order_message_reads (
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (order_id, user_id)
+      )
+    `);
+    // Conversațiile existente pornesc ca citite, altfel toate ar apărea brusc ca necitite la prima lansare.
+    await pool.query(`
+      INSERT INTO order_message_reads (order_id, user_id)
+      SELECT o.id, o.distributor_id FROM orders o
+      UNION
+      SELECT o.id, pl.seller_id FROM orders o JOIN product_listings pl ON pl.id = o.listing_id
+    `);
+  }
+
   if (env.adminEmail && env.adminPassword) {
     await pool.query(
       `
