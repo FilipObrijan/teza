@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
-import { notifyDistributorOrderStatus, notifySellerOrder } from '../util/notifications.js';
+import { notifyDistributorOrderStatus, notifyNewMessage, notifySellerOrder } from '../util/notifications.js';
 
 const router = Router();
 
@@ -387,6 +387,7 @@ router.post('/:id/messages', requireAuth, requireRole(['seller', 'distributor'])
     );
     // Cine răspunde a văzut, evident, conversația.
     await markConversationRead(idResult.data, req.user.sub);
+    notifyNewMessage(result.rows[0].id);
     return res.status(201).json({ message: result.rows[0] });
   } catch (error) {
     console.error('Create order message error:', error);

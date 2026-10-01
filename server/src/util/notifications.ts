@@ -147,7 +147,57 @@ export const notifyDistributorOrderStatus = (orderId: string) =>
     });
   });
 
-export const notifyDistributorsNewListing = (listingId: string) =>
+// Email pentru un mesaj nou în chat, fără spam: cel mult un email per conversație până când destinatarul o citește,
+// și niciunul dacă destinatarul a citit conversația în ultimele 2 minute (e pe site și vede mesajul oricum).
+export const notifyNewMessage = (messageId: string) =>
+  runInBackground('chat/new-message', async () => {
+    const result = await pool.query(
+      `
+        SELECT m.order_id, m.receiver_id, m.content,
+               receiver.email AS receiver_email, sender.full_name AS sender_name,
+               pl.product_name, pl.variety,
+               COALESCE(r.last_read_at > NOW() - INTERVAL '2 minutes', false) AS recently_active
+        FROM order_messages m
+        JOIN users receiver ON receiver.id = m.receiver_id
+        JOIN users sender ON sender.id = m.sender_id
+        JOIN orders o ON o.id = m.order_id
+        JOIN product_listings pl ON pl.id = o.listing_id
+        LEFT JOIN order_message_reads r ON r.order_id = m.order_id AND r.user_id = m.receiver_id
+        WHERE m.id = $1
+      `,
+      [messageId],
+    );
+    const message = result.rows[0];
+    if (!message || message.recently_active || !message.receiver_email) return;
+
+    // „Rezervăm” atomic emailul: reușește doar dacă nu s-a mai trimis unul de la ultima citire.
+    // Așa, două mesaje trimise aproape simultan nu produc două emailuri.
+    const claim = await pool.query(
+      `
+        INSERT INTO order_message_notifications (order_id, user_id, last_notified_at) VALUES ($1, $2, NOW())
+        ON CONFLICT (order_id, user_id) DO UPDATE SET last_notified_at = NOW()
+        WHERE order_message_notifications.last_notified_at <= COALESCE(
+          (SELECT last_read_at FROM order_message_reads WHERE order_id = $1 AND user_id = $2),
+          '-infinity'::timestamptz
+        )
+        RETURNING order_id
+      `,
+      [message.order_id, message.receiver_id],
+    );
+    if (claim.rowCount === 0) return;
+
+    const preview = message.content.length > 300 ? `${message.content.slice(0, 300)}…` : message.content;
+    await sendNotification(message.receiver_email, {
+      subject: `Mesaj nou de la ${message.sender_name} – ${message.product_name}`,
+      lines: [
+        `${message.sender_name} ți-a scris despre ${message.product_name} (${message.variety}):`,
+        `„${preview}”`,
+        'Răspunde din fereastra de mesaje de pe AgroHub. Nu primești alte emailuri pentru această conversație până nu o deschizi.',
+      ],
+    });
+  });
+
+export const notifyDistributorsNewListing =(listingId: string) =>
   runInBackground('distributors/new-listing', async () => {
     const [listingResult, distributorsResult] = await Promise.all([
       pool.query(

@@ -58,6 +58,16 @@ export async function migrate() {
   // Momentul în care utilizatorul și-a șters conversația; mesajele de dinainte nu i se mai arată.
   await pool.query('ALTER TABLE order_message_reads ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ');
 
+  // Când i s-a trimis ultima oară un email despre mesaje noi (cel mult unul până citește conversația).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS order_message_notifications (
+      order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      last_notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (order_id, user_id)
+    )
+  `);
+
   // Logarea cu Google: contul se leagă de identificatorul Google, iar parola devine opțională.
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE');
   await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
