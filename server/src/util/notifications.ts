@@ -148,7 +148,8 @@ export const notifyDistributorOrderStatus = (orderId: string) =>
   });
 
 // Email pentru un mesaj nou în chat, fără spam: cel mult un email per conversație până când destinatarul o citește,
-// și niciunul dacă destinatarul a citit conversația în ultimele 2 minute (e pe site și vede mesajul oricum).
+// și niciunul dacă destinatarul a citit conversația în ultimele 30 de secunde: cu chatul deschis, site-ul o marchează
+// citită la fiecare 5 secunde, deci e pe site și vede mesajul oricum.
 export const notifyNewMessage = (messageId: string) =>
   runInBackground('chat/new-message', async () => {
     const result = await pool.query(
@@ -156,7 +157,7 @@ export const notifyNewMessage = (messageId: string) =>
         SELECT m.order_id, m.receiver_id, m.content,
                receiver.email AS receiver_email, sender.full_name AS sender_name,
                pl.product_name, pl.variety,
-               COALESCE(r.last_read_at > NOW() - INTERVAL '2 minutes', false) AS recently_active
+               COALESCE(r.last_read_at > NOW() - INTERVAL '30 seconds', false) AS recently_active
         FROM order_messages m
         JOIN users receiver ON receiver.id = m.receiver_id
         JOIN users sender ON sender.id = m.sender_id
