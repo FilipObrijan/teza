@@ -68,6 +68,22 @@ export async function migrate() {
     )
   `);
 
+  // Recenzii verificate: fiecare parte a unei comenzi acceptate o poate evalua pe cealaltă, o singură dată per comandă.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reviewee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (order_id, reviewer_id)
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_reviews_reviewee ON reviews(reviewee_id)');
+
   // Logarea cu Google: contul se leagă de identificatorul Google, iar parola devine opțională.
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE');
   await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');

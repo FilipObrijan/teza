@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
+import { mapRating, ratingColumns } from '../util/ratings.js';
 
 const router = Router();
 
@@ -44,7 +45,9 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
         pool.query(
           `
             SELECT o.id, o.ordered_quantity_kg, o.unit_price, o.total_amount, o.status, o.notes, o.created_at,
-                   pl.product_name, pl.variety, u.full_name AS distributor_name, u.email AS distributor_email, u.phone AS distributor_phone
+                   pl.product_name, pl.variety, u.id AS distributor_id, u.full_name AS distributor_name, u.email AS distributor_email, u.phone AS distributor_phone,
+                   ${ratingColumns('u.id', 'distributor')},
+                   (SELECT rating FROM reviews WHERE order_id = o.id AND reviewer_id = $1) AS my_review_rating
             FROM orders o
             JOIN product_listings pl ON pl.id = o.listing_id
             JOIN users u ON u.id = o.distributor_id
@@ -82,7 +85,10 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
           id: order.id,
           productName: order.product_name,
           variety: order.variety,
+          distributorId: order.distributor_id,
           distributorName: order.distributor_name,
+          distributorRating: mapRating(order, 'distributor'),
+          myReviewRating: order.my_review_rating,
           distributorEmail: order.distributor_email,
           distributorPhone: order.distributor_phone,
           quantityKg: Number(order.ordered_quantity_kg),
@@ -110,7 +116,9 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
       pool.query(
         `
           SELECT o.id, o.ordered_quantity_kg, o.total_amount, o.status, o.created_at, pl.quantity_kg AS available_quantity_kg,
-                 pl.product_name, pl.variety, u.full_name AS seller_name
+                 pl.product_name, pl.variety, u.id AS seller_id, u.full_name AS seller_name,
+                 ${ratingColumns('u.id', 'seller')},
+                 (SELECT rating FROM reviews WHERE order_id = o.id AND reviewer_id = $1) AS my_review_rating
           FROM orders o
           JOIN product_listings pl ON pl.id = o.listing_id
           JOIN users u ON u.id = pl.seller_id
@@ -136,7 +144,10 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
         id: order.id,
         productName: order.product_name,
         variety: order.variety,
+        sellerId: order.seller_id,
         sellerName: order.seller_name,
+        sellerRating: mapRating(order, 'seller'),
+        myReviewRating: order.my_review_rating,
         quantityKg: Number(order.ordered_quantity_kg),
         availableQuantityKg: Number(order.available_quantity_kg),
         totalAmount: Number(order.total_amount),

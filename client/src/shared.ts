@@ -10,7 +10,9 @@ export type AuthUser = {
   status: string;
 };
 
-export const orderStatusLabel = (status: string) => ({
+export type RatingSummary = { average: number | null; count: number };
+
+export const orderStatusLabel =(status: string) => ({
   pending: 'În așteptare',
   confirmed: 'Acceptat',
   rejected: 'Refuzat',

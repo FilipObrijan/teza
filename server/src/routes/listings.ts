@@ -9,6 +9,7 @@ import sharp from 'sharp';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
 import { notifyAdminsPendingListing } from '../util/notifications.js';
+import { mapRating, ratingColumns } from '../util/ratings.js';
 
 const router = Router();
 const uploadsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads');
@@ -83,7 +84,8 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
       `
-        SELECT ${listingColumns}, u.full_name AS seller_name, u.email AS seller_email, u.phone AS seller_phone
+        SELECT ${listingColumns}, u.full_name AS seller_name, u.email AS seller_email, u.phone AS seller_phone,
+               ${ratingColumns('pl.seller_id', 'seller')}
         FROM product_listings pl
         JOIN users u ON u.id = pl.seller_id
         WHERE pl.status = $1::listing_status
@@ -94,7 +96,7 @@ router.get('/', async (req, res) => {
       [status, region || null, search || null],
     );
 
-    return res.status(200).json({ listings: result.rows.map(mapListing) });
+    return res.status(200).json({ listings: result.rows.map((row) => ({ ...mapListing(row), sellerRating: mapRating(row, 'seller') })) });
   } catch (error) {
     console.error('List listings error:', error);
     return res.status(500).json({ message: 'Eroare la încărcarea ofertelor.' });
