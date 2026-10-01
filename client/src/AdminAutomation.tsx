@@ -80,6 +80,8 @@ function AutomationSettings() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [aiTest, setAITest] = useState<{ ok: boolean; message: string } | null>(null);
+  const [isTestingAI, setIsTestingAI] = useState(false);
 
   const apply = (body: { settings: Settings; aiConfigured: boolean; aiProvider: string | null }) => {
     setSettings(body.settings);
@@ -109,6 +111,19 @@ function AutomationSettings() {
       setError(saveError instanceof Error ? saveError.message : 'Eroare la salvarea setărilor.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const runAITest = async () => {
+    setIsTestingAI(true);
+    setAITest(null);
+    try {
+      const body = await fetch(`${API_BASE}/api/admin/moderation/test-ai`, { method: 'POST', headers: authHeaders() }).then((response) => response.json());
+      setAITest({ ok: Boolean(body.ok), message: body.message ?? 'Răspuns neașteptat de la server.' });
+    } catch {
+      setAITest({ ok: false, message: 'Nu am putut contacta serverul.' });
+    } finally {
+      setIsTestingAI(false);
     }
   };
 
@@ -153,6 +168,10 @@ function AutomationSettings() {
           disabled={!aiConfigured}
           onChange={(value) => update('aiCheckListings', value)}
         />
+        {aiConfigured && <div className="ai-test">
+          <button type="button" className="cancel-action" disabled={isTestingAI} onClick={() => void runAITest()}>{isTestingAI ? 'Se testează...' : 'Testează AI'}</button>
+          {aiTest && <p className={`auth-feedback ${aiTest.ok ? 'success' : 'error'}`}>{aiTest.message}</p>}
+        </div>}
       </fieldset>
 
       <fieldset>

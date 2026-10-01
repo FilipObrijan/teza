@@ -57,6 +57,29 @@ const describeListing = (listing: ListingForAI, hasImage: boolean) => [
   '</listing>',
 ].join('\n');
 
+// Mesajul de eroare al API-ului (ex. „API key not valid”), ca adminul să vadă cauza, nu doar codul HTTP.
+const apiError = async (provider: string, response: Response) => {
+  const raw = await response.text();
+  let message = raw;
+  try {
+    message = (JSON.parse(raw) as { error?: { message?: string } }).error?.message ?? raw;
+  } catch {
+    // Răspunsul nu e JSON; păstrăm textul brut.
+  }
+  return new Error(`${provider} ${response.status}: ${message.replace(/\s+/g, ' ').slice(0, 200)}`);
+};
+
+// Explicația scurtă a unei erori AI, afișată adminului lângă anunț.
+export const describeAIError = (error: unknown) => {
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return `${aiProviderName() ?? 'AI'} nu a răspuns în ${AI_TIMEOUT_MS / 1000} secunde`;
+  }
+  if (error instanceof SyntaxError) return `${aiProviderName() ?? 'AI'} a răspuns într-un format neașteptat`;
+  return error instanceof Error ? error.message.slice(0, 220) : String(error).slice(0, 220);
+};
+
+const AI_TIMEOUT_MS = 30000;
+
 const toVerdict = (value: unknown, provider: string): AIVerdict => {
   const verdict = value as Partial<AIVerdict> | undefined;
   if (typeof verdict?.approve !== 'boolean') throw new Error(`${provider} returned no moderation result`);
@@ -91,14 +114,15 @@ const askGemini = async (listing: ListingForAI, image: string | null): Promise<A
         },
       },
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
   });
 
-  if (!response.ok) throw new Error(`Gemini API ${response.status}: ${(await response.text()).slice(0, 300)}`);
+  if (!response.ok) throw await apiError('Gemini', response);
 
   const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
-  return toVerdict(JSON.parse(text || '{}'), 'Gemini');
+  // Unele modele pun JSON-ul între ```json ... ```; îl scoatem de acolo.
+  return toVerdict(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '') || '{}'), 'Gemini');
 };
 
 const askClaude = async (listing: ListingForAI, image: string | null): Promise<AIVerdict> => {
@@ -130,10 +154,10 @@ const askClaude = async (listing: ListingForAI, image: string | null): Promise<A
         ],
       }],
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
   });
 
-  if (!response.ok) throw new Error(`Anthropic API ${response.status}: ${(await response.text()).slice(0, 300)}`);
+  if (!response.ok) throw await apiError('Claude', response);
 
   const body = (await response.json()) as { content?: Array<{ type: string; input?: unknown }> };
   return toVerdict(body.content?.find((block) => block.type === 'tool_use')?.input, 'Claude');
@@ -150,4 +174,15 @@ export const checkListingWithAI = async (listing: ListingForAI, image: Buffer | 
     : null;
 
   return provider === 'gemini' ? askGemini(listing, small) : askClaude(listing, small);
+};
+
+// Pentru butonul „Testează AI” din panou: o cerere reală, cu un anunț și o poză de probă.
+export const testAI = async () => {
+  const image = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 90, g: 150, b: 60 } } }).png().toBuffer();
+  const startedAt = Date.now();
+  const verdict = await checkListingWithAI(
+    { productName: 'Castraveți', variety: 'Test', region: 'Chișinău', deliveryTerms: null, quantityKg: 100, pricePerKg: 10, unitMeasure: 'kg' },
+    image,
+  );
+  return { verdict, durationMs: Date.now() - startedAt };
 };

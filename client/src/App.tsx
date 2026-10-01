@@ -732,6 +732,24 @@ export default function App() {
     }
   };
 
+  // Rulează din nou verificarea automată (ex. după ce AI-ul nu a răspuns); dacă trece, anunțul se publică.
+  const recheckListing = async (listingId: string) => {
+    setAdminError('');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/listings/${listingId}/recheck`, { method: 'POST', headers: { Authorization: `Bearer ${sessionStorage.getItem('agrohub_token')}` } });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? 'Nu am putut reverifica anunțul.');
+      if (data.status === 'active') {
+        setPendingListings((listings) => listings.filter((listing) => listing.id !== listingId));
+        await loadCatalog();
+      } else {
+        setPendingListings((listings) => listings.map((listing) => (listing.id === listingId ? { ...listing, moderationReasons: data.reasons } : listing)));
+      }
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Eroare la reverificarea anunțului.');
+    }
+  };
+
   const updateUserStatus = async (userId: string, status: 'approved' | 'rejected') => {
     const token = sessionStorage.getItem('agrohub_token');
 
@@ -892,7 +910,7 @@ export default function App() {
         {verifiedPendingUsers.length === 0 ? <p className="empty-admin">Nu există conturi în așteptare.</p> : <div className="pending-list">{verifiedPendingUsers.map((user) => <article className="pending-user" key={user.id}><div><strong>{user.fullName}</strong><span>{user.email} / {user.role === 'seller' ? 'Vânzător' : 'Distribuitor'}</span><small>{user.region || 'Regiune nespecificată'}</small>{(user.moderationReasons?.length ?? 0) > 0 && <p className="moderation-reasons">{user.moderationReasons!.join(' ')}</p>}</div><div className="pending-actions"><button className="approve-button" onClick={() => updateUserStatus(user.id, 'approved')}>Aprobă</button><button className="reject-button" onClick={() => updateUserStatus(user.id, 'rejected')}>Respinge</button></div></article>)}</div>}
         {unverifiedCount > 0 && <p className="admin-footnote">{unverifiedCount === 1 ? 'Un cont nou nu și-a confirmat' : `${unverifiedCount} conturi noi nu și-au confirmat`} încă emailul; apar aici după confirmare.</p>}
           <p className="admin-section-label">Anunțuri</p>
-        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small>{(listing.moderationReasons?.length ?? 0) > 0 && <p className="moderation-reasons">{listing.moderationReasons!.join(' ')}</p>}</div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
+        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small>{(listing.moderationReasons?.length ?? 0) > 0 && <p className="moderation-reasons">{listing.moderationReasons!.join(' ')}</p>}</div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button>{listing.moderationReasons?.some((reason) => reason.includes('AI')) && <button className="cancel-action recheck-button" onClick={() => void recheckListing(listing.id)}>Reverifică</button>}</div></article>)}</div>}
         </>}
         {adminTab === 'automation' && <AdminAutomation />}
         {adminTab === 'reviews' && <AdminReviews />}

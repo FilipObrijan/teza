@@ -320,6 +320,9 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
 .automation-note { margin: 0; color: #737b72; font-size: .74rem; line-height: 1.5; }
 .automation-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .automation-actions .cancel-action { border: 0; padding: 9px 11px; font-size: .72rem; font-weight: 700; }
+.ai-test { display: grid; gap: 8px; justify-items: start; }
+.ai-test .cancel-action, .recheck-button { border: 0; padding: 9px 11px; font-size: .72rem; font-weight: 700; }
+.ai-test .auth-feedback { margin: 0; overflow-wrap: anywhere; }
 .automation-event { align-items: flex-start; }
 .automation-event > div:first-child { min-width: 0; }
 .pending-user .automation-badge { display: inline-block; margin: 0 0 6px; padding: 2px 8px; border-radius: 10px; font-size: .64rem; font-weight: 700; }

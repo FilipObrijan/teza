@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { pool } from '../db/index.js';
-import { checkListingWithAI, isAIConfigured } from './ai-moderation.js';
+import { checkListingWithAI, describeAIError, isAIConfigured } from './ai-moderation.js';
 import {
   EmailContent,
   formatNumber,
@@ -294,7 +294,7 @@ export const moderateListing = async (listingId: string, { edited = false } = {}
       if (!verdict.approve) reasons.push(`AI: ${verdict.reason || 'nu a aprobat anunțul.'}`);
     } catch (error) {
       console.error('AI moderation failed:', error);
-      reasons.push('Verificarea AI nu a răspuns, așa că anunțul așteaptă verificarea manuală.');
+      reasons.push(`Verificarea AI nu a răspuns, așa că anunțul așteaptă verificarea manuală. Cauza: ${describeAIError(error)}.`);
     }
   }
 

@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
 import { REVIEW_COLUMNS, REVIEW_JOINS, mapReview } from './reviews.js';
-import { aiProviderName, isAIConfigured } from '../util/ai-moderation.js';
-import { getModerationSettings, moderationSettingsSchema, saveModerationSettings, sendDigestNow } from '../util/moderation.js';
+import { aiProviderName, describeAIError, isAIConfigured, testAI } from '../util/ai-moderation.js';
+import { getModerationSettings, moderateListing, moderationSettingsSchema, saveModerationSettings, sendDigestNow } from '../util/moderation.js';
 import { notifyDistributorsNewListing } from '../util/notifications.js';
 
 const router = Router();
@@ -301,6 +301,39 @@ router.get('/moderation/events', async (_req, res) => {
   } catch (error) {
     console.error('List moderation events error:', error);
     return res.status(500).json({ message: 'Eroare la încărcarea activității.' });
+  }
+});
+
+// Face o cerere reală la furnizorul AI și spune exact ce a răspuns (sau de ce a eșuat).
+router.post('/moderation/test-ai', async (_req, res) => {
+  if (!isAIConfigured()) {
+    return res.status(400).json({ ok: false, message: 'Nu e setată nicio cheie AI pe server (GEMINI_API_KEY).' });
+  }
+  try {
+    const { verdict, durationMs } = await testAI();
+    return res.status(200).json({
+      ok: true,
+      message: `${aiProviderName()} funcționează (${(durationMs / 1000).toFixed(1)} s). Răspuns la anunțul de probă: ${verdict.approve ? 'aprobat' : 'neaprobat'} – ${verdict.reason}`,
+    });
+  } catch (error) {
+    console.error('AI test failed:', error);
+    return res.status(200).json({ ok: false, message: `${aiProviderName()} nu funcționează: ${describeAIError(error)}` });
+  }
+});
+
+// Rulează din nou verificarea automată pentru un anunț din coadă (ex. după ce AI-ul a fost reparat).
+router.post('/listings/:id/recheck', async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success) return res.status(400).json({ message: 'ID invalid.' });
+
+  try {
+    const pending = await pool.query(`SELECT 1 FROM product_listings WHERE id = $1 AND status = 'pending'`, [idResult.data]);
+    if (pending.rowCount === 0) return res.status(404).json({ message: 'Anunțul nu mai este în așteptare.' });
+    const result = await moderateListing(idResult.data);
+    return res.status(200).json({ status: result?.status, reasons: result?.reasons ?? [] });
+  } catch (error) {
+    console.error('Recheck listing error:', error);
+    return res.status(500).json({ message: 'Eroare la reverificarea anunțului.' });
   }
 });
 
