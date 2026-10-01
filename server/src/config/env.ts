@@ -35,7 +35,14 @@ export const env = {
   brevoApiKey: process.env.BREVO_API_KEY ?? '',
   // Client ID-ul OAuth din Google Cloud Console; gol = logarea cu Google e dezactivată.
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
-  // Cheia de la console.anthropic.com pentru verificarea anunțurilor cu AI; gol = verificarea AI e dezactivată.
+  // Verificarea anunțurilor cu AI. Fără nicio cheie, verificarea AI e dezactivată.
+  // AI_PROVIDER = "gemini" sau "claude"; gol = primul care are cheie (întâi Gemini).
+  aiProvider: (process.env.AI_PROVIDER ?? '').trim().toLowerCase(),
+  // Cheia gratuită de la aistudio.google.com.
+  geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+  geminiModel: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',
+  geminiBaseUrl: (process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com').replace(/\/$/, ''),
+  // Cheia de la console.anthropic.com (plătită la consum).
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
   anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001',
   anthropicBaseUrl: (process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com').replace(/\/$/, ''),

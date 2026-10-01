@@ -37,7 +37,11 @@ services:
       # Client ID-ul OAuth din Google Cloud, pentru „Continuă cu Google” (același ca VITE_GOOGLE_CLIENT_ID pe Cloudflare).
       - key: GOOGLE_CLIENT_ID
         sync: false
-      # Opțional: cheia de la console.anthropic.com pentru verificarea anunțurilor cu AI (Claude Haiku).
-      # Fără ea, anunțurile sunt verificate doar cu regulile gratuite.
+      # Opțional: verificarea anunțurilor cu AI. Fără cheie, anunțurile trec doar prin regulile gratuite.
+      # Cheia gratuită de la aistudio.google.com (Gemini).
+      - key: GEMINI_API_KEY
+        sync: false
+      # Alternativă plătită: cheia de la console.anthropic.com (Claude). Dacă le setezi pe amândouă, se folosește Gemini
+      # (sau cel ales în AI_PROVIDER = "gemini" / "claude").
       - key: ANTHROPIC_API_KEY
         sync: false

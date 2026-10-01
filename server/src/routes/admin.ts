@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
 import { REVIEW_COLUMNS, REVIEW_JOINS, mapReview } from './reviews.js';
-import { isAIConfigured } from '../util/ai-moderation.js';
+import { aiProviderName, isAIConfigured } from '../util/ai-moderation.js';
 import { getModerationSettings, moderationSettingsSchema, saveModerationSettings, sendDigestNow } from '../util/moderation.js';
 import { notifyDistributorsNewListing } from '../util/notifications.js';
 
@@ -242,7 +242,7 @@ router.delete('/reviews/:id/reply', async (req, res) => {
 
 router.get('/moderation/settings', async (_req, res) => {
   try {
-    return res.status(200).json({ settings: await getModerationSettings(), aiConfigured: isAIConfigured() });
+    return res.status(200).json({ settings: await getModerationSettings(), aiConfigured: isAIConfigured(), aiProvider: aiProviderName() });
   } catch (error) {
     console.error('Get moderation settings error:', error);
     return res.status(500).json({ message: 'Eroare la încărcarea setărilor.' });
@@ -260,7 +260,7 @@ router.put('/moderation/settings', async (req, res) => {
 
   try {
     await saveModerationSettings({ ...input.data, bannedWords: [...new Set(input.data.bannedWords.map((word) => word.toLowerCase()))] });
-    return res.status(200).json({ settings: await getModerationSettings(), aiConfigured: isAIConfigured() });
+    return res.status(200).json({ settings: await getModerationSettings(), aiConfigured: isAIConfigured(), aiProvider: aiProviderName() });
   } catch (error) {
     console.error('Save moderation settings error:', error);
     return res.status(500).json({ message: 'Eroare la salvarea setărilor.' });

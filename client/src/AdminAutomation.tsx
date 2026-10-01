@@ -76,14 +76,16 @@ function AutomationSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [bannedWords, setBannedWords] = useState('');
   const [aiConfigured, setAIConfigured] = useState(false);
+  const [aiProvider, setAIProvider] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const apply = (body: { settings: Settings; aiConfigured: boolean }) => {
+  const apply = (body: { settings: Settings; aiConfigured: boolean; aiProvider: string | null }) => {
     setSettings(body.settings);
     setBannedWords(body.settings.bannedWords.join(', '));
     setAIConfigured(body.aiConfigured);
+    setAIProvider(body.aiProvider);
   };
 
   useEffect(() => {
@@ -143,10 +145,10 @@ function AutomationSettings() {
           <textarea value={bannedWords} onChange={(event) => setBannedWords(event.target.value)} />
         </label>
         <Toggle
-          label="Verificare cu AI (Claude)"
+          label={`Verificare cu AI${aiProvider ? ` (${aiProvider})` : ''}`}
           hint={aiConfigured
-            ? 'Textul și fotografia sunt verificate de AI după ce trec regulile de mai sus. Costă sub un cent per anunț.'
-            : 'Inactivă: adaugă variabila ANTHROPIC_API_KEY pe Render ca s-o pornești.'}
+            ? `Textul și fotografia sunt verificate de AI după ce trec regulile de mai sus.${aiProvider === 'Gemini' ? ' Folosește nivelul gratuit Gemini.' : ''}`
+            : 'Inactivă: adaugă variabila GEMINI_API_KEY pe Render (cheie gratuită de la aistudio.google.com) ca s-o pornești.'}
           checked={settings.aiCheckListings && aiConfigured}
           disabled={!aiConfigured}
           onChange={(value) => update('aiCheckListings', value)}
