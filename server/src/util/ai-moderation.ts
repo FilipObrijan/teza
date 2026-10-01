@@ -11,7 +11,7 @@ export type ListingForAI = {
   unitMeasure: string;
 };
 
-export type AIVerdict = { approve: boolean; reason: string };
+export type AIVerdict = { approve: boolean; reason: string; model?: string };
 
 type Provider = 'gemini' | 'claude';
 
@@ -57,6 +57,12 @@ const describeListing = (listing: ListingForAI, hasImage: boolean) => [
   '</listing>',
 ].join('\n');
 
+class AIRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 // Mesajul de eroare al API-ului (ex. „API key not valid”), ca adminul să vadă cauza, nu doar codul HTTP.
 const apiError = async (provider: string, response: Response) => {
   const raw = await response.text();
@@ -66,7 +72,7 @@ const apiError = async (provider: string, response: Response) => {
   } catch {
     // Răspunsul nu e JSON; păstrăm textul brut.
   }
-  return new Error(`${provider} ${response.status}: ${message.replace(/\s+/g, ' ').slice(0, 200)}`);
+  return new AIRequestError(`${provider} ${response.status}: ${message.replace(/\s+/g, ' ').slice(0, 200)}`, response.status);
 };
 
 // Explicația scurtă a unei erori AI, afișată adminului lângă anunț.
@@ -75,10 +81,19 @@ export const describeAIError = (error: unknown) => {
     return `${aiProviderName() ?? 'AI'} nu a răspuns în ${AI_TIMEOUT_MS / 1000} secunde`;
   }
   if (error instanceof SyntaxError) return `${aiProviderName() ?? 'AI'} a răspuns într-un format neașteptat`;
-  return error instanceof Error ? error.message.slice(0, 220) : String(error).slice(0, 220);
+  return (error instanceof Error ? error.message : String(error)).slice(0, 220).replace(/[.\s]+$/, '');
 };
 
-const AI_TIMEOUT_MS = 30000;
+// Timpul maxim pentru o încercare și pentru toate încercările unei verificări (vânzătorul așteaptă răspunsul).
+const AI_TIMEOUT_MS = 20000;
+const AI_TOTAL_BUDGET_MS = 45000;
+
+// Erori trecătoare (supraîncărcare, limită pe minut, pană, timeout, rețea): merită reîncercat sau alt model.
+const isTransient = (error: unknown) => (error instanceof AIRequestError
+  ? [429, 500, 502, 503, 504].includes(error.status)
+  : error instanceof Error && ['TimeoutError', 'AbortError', 'TypeError'].includes(error.name));
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toVerdict = (value: unknown, provider: string): AIVerdict => {
   const verdict = value as Partial<AIVerdict> | undefined;
@@ -86,8 +101,8 @@ const toVerdict = (value: unknown, provider: string): AIVerdict => {
   return { approve: verdict.approve, reason: String(verdict.reason ?? '').slice(0, 300) };
 };
 
-const askGemini = async (listing: ListingForAI, image: string | null): Promise<AIVerdict> => {
-  const response = await fetch(`${env.geminiBaseUrl}/v1beta/models/${env.geminiModel}:generateContent`, {
+const askGemini = async (listing: ListingForAI, image: string | null, model: string, timeoutMs: number): Promise<AIVerdict> => {
+  const response = await fetch(`${env.geminiBaseUrl}/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': env.geminiApiKey, 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -114,7 +129,7 @@ const askGemini = async (listing: ListingForAI, image: string | null): Promise<A
         },
       },
     }),
-    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) throw await apiError('Gemini', response);
@@ -122,7 +137,32 @@ const askGemini = async (listing: ListingForAI, image: string | null): Promise<A
   const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
   // Unele modele pun JSON-ul între ```json ... ```; îl scoatem de acolo.
-  return toVerdict(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '') || '{}'), 'Gemini');
+  return { ...toVerdict(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '') || '{}'), 'Gemini'), model };
+};
+
+// Pe nivelul gratuit Google răspunde des „ocupat” (503) sau „prea multe cereri” (429). Reîncercăm o dată,
+// apoi trecem la modelele de rezervă. Erorile definitive (cheie greșită, facturare) se opresc imediat.
+const askGeminiWithFallback = async (listing: ListingForAI, image: string | null): Promise<AIVerdict> => {
+  const models = [...new Set([env.geminiModel, ...env.geminiFallbackModels])];
+  const deadline = Date.now() + AI_TOTAL_BUDGET_MS;
+  let lastError: unknown = new Error('Gemini: niciun model disponibil');
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const timeLeft = deadline - Date.now();
+      if (timeLeft < 3000) throw lastError;
+      try {
+        return await askGemini(listing, image, model, Math.min(AI_TIMEOUT_MS, timeLeft));
+      } catch (error) {
+        lastError = error;
+        const modelMissing = error instanceof AIRequestError && error.status === 404;
+        if (!isTransient(error) && !modelMissing) throw error;
+        if (modelMissing || attempt === 1) break;
+        await sleep(1500);
+      }
+    }
+  }
+  throw lastError;
 };
 
 const askClaude = async (listing: ListingForAI, image: string | null): Promise<AIVerdict> => {
@@ -173,7 +213,7 @@ export const checkListingWithAI = async (listing: ListingForAI, image: Buffer | 
     ? (await sharp(image).resize(768, 768, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer()).toString('base64')
     : null;
 
-  return provider === 'gemini' ? askGemini(listing, small) : askClaude(listing, small);
+  return provider === 'gemini' ? askGeminiWithFallback(listing, small) : askClaude(listing, small);
 };
 
 // Pentru butonul „Testează AI” din panou: o cerere reală, cu un anunț și o poză de probă.

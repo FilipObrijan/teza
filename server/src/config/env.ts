@@ -41,6 +41,9 @@ export const env = {
   // Cheia gratuită de la aistudio.google.com.
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
   geminiModel: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',
+  // Modele de rezervă, încercate când modelul principal e supraîncărcat sau indisponibil.
+  geminiFallbackModels: (process.env.GEMINI_FALLBACK_MODELS ?? 'gemini-flash-lite-latest,gemini-2.5-flash')
+    .split(',').map((model) => model.trim()).filter(Boolean),
   geminiBaseUrl: (process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com').replace(/\/$/, ''),
   // Cheia de la console.anthropic.com (plătită la consum).
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',

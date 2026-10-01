@@ -241,10 +241,13 @@ const evaluateRules = (listing: ListingRow, settings: ModerationSettings, edited
   return reasons;
 };
 
+const AI_FAILURE_PREFIX = 'Verificarea AI nu a răspuns';
+
 export type ListingModeration = { status: string; reasons: string[] };
 
 // Decide dacă un anunț nou (sau unul editat) se publică automat sau așteaptă adminul.
-export const moderateListing = async (listingId: string, { edited = false } = {}): Promise<ListingModeration | null> => {
+// `quietRetry`: reverificare automată după o pană AI; dacă AI-ul tot nu răspunde, nu mai scriem încă un eveniment (fără emailuri repetate).
+export const moderateListing = async (listingId: string, { edited = false, quietRetry = false } = {}): Promise<ListingModeration | null> => {
   const settings = await getModerationSettings();
   const listing = (await pool.query(
     `
@@ -274,6 +277,7 @@ export const moderateListing = async (listingId: string, { edited = false } = {}
 
   const reasons = evaluateRules(listing, settings, edited);
   let aiChecked = false;
+  let aiFailed = false;
 
   // AI-ul rulează doar dacă regulile gratuite au trecut, ca să nu plătim pentru anunțuri respinse oricum.
   if (reasons.length === 0 && settings.aiCheckListings && isAIConfigured()) {
@@ -294,7 +298,8 @@ export const moderateListing = async (listingId: string, { edited = false } = {}
       if (!verdict.approve) reasons.push(`AI: ${verdict.reason || 'nu a aprobat anunțul.'}`);
     } catch (error) {
       console.error('AI moderation failed:', error);
-      reasons.push(`Verificarea AI nu a răspuns, așa că anunțul așteaptă verificarea manuală. Cauza: ${describeAIError(error)}.`);
+      aiFailed = true;
+      reasons.push(`${AI_FAILURE_PREFIX}, așa că anunțul așteaptă verificarea manuală (se reîncearcă automat). Cauza: ${describeAIError(error)}.`);
     }
   }
 
@@ -311,7 +316,9 @@ export const moderateListing = async (listingId: string, { edited = false } = {}
   }
 
   await pool.query(`UPDATE product_listings SET status = 'pending' WHERE id = $1 AND status IN ('pending', 'active')`, [listingId]);
-  await recordEvent({ subjectType: 'listing', subjectId: listingId, outcome: 'pending', reasons, aiChecked, edited });
+  if (!(quietRetry && aiFailed)) {
+    await recordEvent({ subjectType: 'listing', subjectId: listingId, outcome: 'pending', reasons, aiChecked, edited });
+  }
   return { status: 'pending', reasons };
 };
 
@@ -393,8 +400,47 @@ export const sendDigestNow = async () => {
 
 // Verifică la câteva minute dacă a trecut ora rezumatului. Pe Render free, UptimeRobot ține serverul treaz;
 // dacă totuși a dormit la ora respectivă, rezumatul pleacă la prima verificare după ce se trezește.
+// Anunțurile oprite doar pentru că AI-ul n-a răspuns (ex. Gemini supraîncărcat) se reverifică singure:
+// cel mult o dată la 15 minute fiecare, de cel mult 12 ori (aprox. 3 ore), apoi rămân la admin.
+const AI_RETRY_INTERVAL_MS = 15 * 60_000;
+const AI_RETRY_MAX_ATTEMPTS = 12;
+const aiRetries = new Map<string, { attempts: number; lastAt: number }>();
+
+const retryAIFailures = async () => {
+  const settings = await getModerationSettings();
+  if (!settings.autoApproveListings || !settings.aiCheckListings || !isAIConfigured()) return;
+
+  const result = await pool.query(
+    `
+      SELECT pl.id
+      FROM product_listings pl
+      JOIN LATERAL (
+        SELECT reasons, created_at FROM moderation_events me WHERE me.subject_id = pl.id ORDER BY me.created_at DESC LIMIT 1
+      ) last_event ON true
+      WHERE pl.status = 'pending'
+        AND last_event.created_at > NOW() - INTERVAL '1 day'
+        AND array_to_string(last_event.reasons, ' ') LIKE $1
+      ORDER BY last_event.created_at
+      LIMIT 20
+    `,
+    [`${AI_FAILURE_PREFIX}%`],
+  );
+
+  let processed = 0;
+  for (const { id } of result.rows) {
+    const state = aiRetries.get(id) ?? { attempts: 0, lastAt: 0 };
+    if (state.attempts >= AI_RETRY_MAX_ATTEMPTS || Date.now() - state.lastAt < AI_RETRY_INTERVAL_MS) continue;
+    // Câteva pe rând, ca să nu consumăm limita gratuită dintr-odată.
+    if (processed++ >= 3) break;
+    aiRetries.set(id, { attempts: state.attempts + 1, lastAt: Date.now() });
+    const outcome = await moderateListing(id, { quietRetry: true });
+    if (outcome?.status === 'active') aiRetries.delete(id);
+  }
+};
+
 export const startDigestScheduler = () => {
   const tick = () => {
+    retryAIFailures().catch((error) => console.error('AI retry failed:', error));
     sendDigestIfDue().catch((error) => console.error('Daily digest failed:', error));
   };
   setTimeout(tick, 30_000).unref();

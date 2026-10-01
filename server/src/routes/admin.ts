@@ -313,7 +313,7 @@ router.post('/moderation/test-ai', async (_req, res) => {
     const { verdict, durationMs } = await testAI();
     return res.status(200).json({
       ok: true,
-      message: `${aiProviderName()} funcționează (${(durationMs / 1000).toFixed(1)} s). Răspuns la anunțul de probă: ${verdict.approve ? 'aprobat' : 'neaprobat'} – ${verdict.reason}`,
+      message: `${aiProviderName()}${verdict.model ? ` (${verdict.model})` : ''} funcționează (${(durationMs / 1000).toFixed(1)} s). Răspuns la anunțul de probă: ${verdict.approve ? 'aprobat' : 'neaprobat'} – ${verdict.reason}`,
     });
   } catch (error) {
     console.error('AI test failed:', error);
