@@ -4,18 +4,18 @@ import { sendEmail } from './email.js';
 
 // Notificările pe email nu trebuie să blocheze sau să strice cererea care le-a declanșat:
 // rulează după răspuns, iar erorile doar se loghează.
-const runInBackground = (label: string, task: () => Promise<void>) => {
+export const runInBackground = (label: string, task: () => Promise<void>) => {
   task().catch((error) => console.error(`Notification failed (${label}):`, error));
 };
 
 const escapeHtml = (value: unknown) =>
   String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
 
-const formatNumber = (value: unknown) => Number(value).toLocaleString('ro-RO', { maximumFractionDigits: 2 });
+export const formatNumber = (value: unknown) => Number(value).toLocaleString('ro-RO', { maximumFractionDigits: 2 });
 
-type EmailContent = { subject: string; lines: string[] };
+export type EmailContent = { subject: string; lines: string[] };
 
-const sendNotification = (to: string, { subject, lines }: EmailContent) =>
+export const sendNotification = (to: string, { subject, lines }: EmailContent) =>
   sendEmail({
     to,
     subject,
@@ -26,60 +26,18 @@ const sendNotification = (to: string, { subject, lines }: EmailContent) =>
     `,
   });
 
-const sendToAll = async (emails: string[], content: EmailContent) => {
+export const sendToAll = async (emails: string[], content: EmailContent) => {
   for (const email of emails) {
     await sendNotification(email, content).catch((error) => console.error(`Notification to ${email} failed:`, error));
   }
 };
 
-const getAdminEmails = async () => {
+export const getAdminEmails = async () => {
   const result = await pool.query(`SELECT email FROM users WHERE role = 'admin' AND status = 'approved'`);
   return result.rows.map((row) => String(row.email));
 };
 
-const roleLabel = (role: string) => (role === 'seller' ? 'vânzător' : role === 'distributor' ? 'distribuitor' : role);
-
-export const notifyAdminsPendingUser = (userId: string) =>
-  runInBackground('admins/pending-user', async () => {
-    const result = await pool.query(`SELECT full_name, email, role, region FROM users WHERE id = $1 AND status = 'pending'`, [userId]);
-    const user = result.rows[0];
-    if (!user) return;
-
-    await sendToAll(await getAdminEmails(), {
-      subject: `Cont nou de aprobat: ${user.full_name}`,
-      lines: [
-        `Un cont nou de ${roleLabel(user.role)} așteaptă aprobarea ta.`,
-        `Nume: ${user.full_name}`,
-        `Email: ${user.email}`,
-        ...(user.region ? [`Regiune: ${user.region}`] : []),
-      ],
-    });
-  });
-
-export const notifyAdminsPendingListing = (listingId: string) =>
-  runInBackground('admins/pending-listing', async () => {
-    const result = await pool.query(
-      `
-        SELECT pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg, pl.region, u.full_name AS seller_name
-        FROM product_listings pl
-        JOIN users u ON u.id = pl.seller_id
-        WHERE pl.id = $1 AND pl.status = 'pending'
-      `,
-      [listingId],
-    );
-    const listing = result.rows[0];
-    if (!listing) return;
-
-    await sendToAll(await getAdminEmails(), {
-      subject: `Anunț nou de aprobat: ${listing.product_name}`,
-      lines: [
-        `${listing.seller_name} a publicat un anunț care așteaptă aprobarea ta.`,
-        `Produs: ${listing.product_name} (${listing.variety})`,
-        `Cantitate: ${formatNumber(listing.quantity_kg)} kg, ${formatNumber(listing.price_per_kg)} lei/kg`,
-        `Regiune: ${listing.region}`,
-      ],
-    });
-  });
+export const roleLabel = (role: string) => (role === 'seller' ? 'vânzător' : role === 'distributor' ? 'distribuitor' : role);
 
 export const notifySellerOrder = (orderId: string, { updated = false } = {}) =>
   runInBackground('seller/order', async () => {
@@ -246,7 +204,7 @@ export const notifyReviewReply = (reviewId: string) =>
     });
   });
 
-export const notifyDistributorsNewListing =(listingId: string) =>
+export const notifyDistributorsNewListing = (listingId: string) =>
   runInBackground('distributors/new-listing', async () => {
     const [listingResult, distributorsResult] = await Promise.all([
       pool.query(

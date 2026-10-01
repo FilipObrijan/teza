@@ -7,7 +7,7 @@ import { env } from '../config/env.js';
 import { pool } from '../db/index.js';
 import { comparePassword, hashPassword, signToken, verifyToken } from '../util/auth.js';
 import { sendPasswordResetCode, sendVerificationCode } from '../util/email.js';
-import { notifyAdminsPendingUser } from '../util/notifications.js';
+import { getModerationSettings, moderateVerifiedUser } from '../util/moderation.js';
 
 const router = Router();
 
@@ -94,28 +94,39 @@ const issueVerificationCode = async (userId: string, email: string) => {
   await sendVerificationCode(email, code);
 };
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Token de autentificare lipsă.' });
   }
 
+  let payload: ReturnType<typeof verifyToken>;
   try {
-    const token = authHeader.slice(7);
-    const payload = verifyToken(token);
-
-    req.user = {
-      sub: payload.sub,
-      email: payload.email,
-      role: payload.role,
-    };
-
-    return next();
+    payload = verifyToken(authHeader.slice(7));
   } catch (error) {
     console.error('JWT verification failed:', error);
     return res.status(401).json({ message: 'Token invalid sau expirat.' });
   }
+
+  // Un cont blocat de admin pierde accesul imediat, nu abia când îi expiră tokenul.
+  try {
+    const result = await pool.query('SELECT status FROM users WHERE id = $1', [payload.sub]);
+    if (result.rows[0]?.status !== 'approved') {
+      return res.status(403).json({ message: 'Contul tău nu este activ. Contactează administratorul.' });
+    }
+  } catch (error) {
+    console.error('Account status check failed:', error);
+    return res.status(500).json({ message: 'Eroare la verificarea contului.' });
+  }
+
+  req.user = {
+    sub: payload.sub,
+    email: payload.email,
+    role: payload.role,
+  };
+
+  return next();
 };
 
 export const requireRole = (roles: Array<'seller' | 'distributor' | 'admin'>) => {
@@ -165,9 +176,13 @@ router.post('/register', emailLimiter, async (req, res) => {
 
     const user = userResult.rows[0];
     await issueVerificationCode(user.id, user.email);
+    const { autoApproveUsers } = await getModerationSettings();
 
     return res.status(201).json({
       verificationRequired: true,
+      message: autoApproveUsers
+        ? 'Cont creat. Introdu codul primit pe email ca să-l activezi.'
+        : 'Cont creat. Verifică emailul cu codul primit, apoi așteaptă aprobarea administratorului.',
       user: {
         id: user.id,
         fullName: user.full_name,
@@ -301,8 +316,9 @@ router.post('/google', loginLimiter, async (req, res) => {
         `,
         [googleSub, existing.id],
       );
-      if (wasUnverified) notifyAdminsPendingUser(existing.id);
-      return sendSession(res, linked.rows[0]);
+      const user = linked.rows[0];
+      if (wasUnverified) user.status = (await moderateVerifiedUser(existing.id)) ?? user.status;
+      return sendSession(res, user);
     }
 
     // Cont nou: clientul trebuie să ne spună întâi rolul (vânzător sau distribuitor).
@@ -314,11 +330,13 @@ router.post('/google', loginLimiter, async (req, res) => {
       `
         INSERT INTO users (full_name, email, password_hash, role, phone, region, status, email_verified_at, google_sub)
         VALUES ($1, $2, NULL, $3, $4, $5, 'pending', NOW(), $6)
-        RETURNING id
+        RETURNING id, full_name, email, role, status, phone, region, email_verified_at, created_at
       `,
       [fullName, email, input.data.role, input.data.phone || null, input.data.region || null, googleSub],
     );
-    notifyAdminsPendingUser(created.rows[0].id);
+    const user = created.rows[0];
+    user.status = (await moderateVerifiedUser(user.id)) ?? user.status;
+    if (user.status === 'approved') return sendSession(res, user);
 
     return res.status(201).json({
       pendingApproval: true,
@@ -369,8 +387,13 @@ router.post('/verify-email', loginLimiter, async (req, res) => {
     await client.query('UPDATE users SET email_verified_at = NOW() WHERE id = $1', [token.user_id]);
     await client.query('UPDATE email_verification_tokens SET used_at = NOW() WHERE id = $1', [token.id]);
     await client.query('COMMIT');
-    notifyAdminsPendingUser(token.user_id);
-    return res.status(200).json({ message: 'Email verificat. Poți continua autentificarea.' });
+    const status = await moderateVerifiedUser(token.user_id);
+    return res.status(200).json({
+      approved: status === 'approved',
+      message: status === 'approved'
+        ? 'Email verificat. Contul este activ, te poți autentifica.'
+        : 'Email verificat. Contul așteaptă aprobarea administratorului.',
+    });
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);
     console.error('Verify email error:', error);

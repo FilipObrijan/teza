@@ -92,6 +92,38 @@ export async function migrate() {
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE');
   await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
 
+  // Aprobarea automată: setările adminului, jurnalul deciziilor și rezumatele zilnice deja trimise.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key VARCHAR(100) PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS moderation_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      subject_type VARCHAR(20) NOT NULL CHECK (subject_type IN ('user', 'listing')),
+      subject_id UUID NOT NULL,
+      outcome VARCHAR(20) NOT NULL CHECK (outcome IN ('auto_approved', 'pending')),
+      reasons TEXT[] NOT NULL DEFAULT '{}',
+      ai_checked BOOLEAN NOT NULL DEFAULT false,
+      edited BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_moderation_events_created ON moderation_events(created_at)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_moderation_events_subject ON moderation_events(subject_id)');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_digests (
+      window_start TIMESTAMPTZ PRIMARY KEY,
+      sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // Când a fost aprobat un anunț (de admin sau automat): așa știm câte anunțuri aprobate are un vânzător.
+  await pool.query('ALTER TABLE product_listings ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ');
+  await pool.query(`UPDATE product_listings SET approved_at = created_at WHERE approved_at IS NULL AND status IN ('active', 'paused')`);
+
   // Ștergerea unei comenzi o ascunde doar din istoricul celui care o șterge.
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_seller_at TIMESTAMPTZ');
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_distributor_at TIMESTAMPTZ');

@@ -187,6 +187,7 @@ button.rating-badge:hover { border-color: #e3a008; color: #263b30; }
 
 .action-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 30; display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100vw - 32px); padding: 12px 12px 12px 18px; border-radius: 8px; color: #fff; background: #a64034; box-shadow: 0 14px 34px rgba(27,41,35,.28); font-size: .82rem; line-height: 1.4; transform: translateX(-50%); }
 .action-toast button { flex-shrink: 0; width: 28px; height: 28px; border: 0; border-radius: 50%; color: #fff; background: rgba(255,255,255,.18); font-size: 1.1rem; line-height: 1; }
+.action-toast.notice { background: #39704a; }
 
 /* Mesaje: bulă plutitoare + fereastră de tip messenger (lista în stânga, conversația în dreapta). */
 .messenger-fab { position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 9; display: grid; place-items: center; width: 60px; height: 60px; border: 0; border-radius: 50%; color: #fff; background: #263b30; box-shadow: 0 12px 30px rgba(27,41,35,.3); transition: transform .2s ease, background .2s ease; }
@@ -296,6 +297,34 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
 .approve-button { color: #fff; background: #39704a; }
 .reject-button { color: #a64034; background: #f6e5df; }
 .empty-admin { padding: 28px 0 5px; color: #737b72; }
+.admin-tabs { margin: 14px 0 6px; }
+.admin-footnote { margin-top: 8px; color: #8a8f86; font-size: .72rem; }
+.moderation-reasons { margin: 6px 0 0; padding: 6px 9px; color: #8a5a00; background: #fdf3d7; font-size: .72rem; line-height: 1.45; }
+.automation-form { display: grid; gap: 14px; }
+.automation-form fieldset { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid #d7d4c8; background: #fff; }
+.automation-form legend { padding: 0 6px; color: #263b30; font-size: .8rem; font-weight: 700; }
+.automation-toggle { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.automation-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-track { position: relative; flex-shrink: 0; width: 38px; height: 22px; margin-top: 1px; border-radius: 11px; background: #d7d4c8; transition: background .15s; }
+.toggle-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s; }
+.automation-toggle input:checked + .toggle-track { background: #39704a; }
+.automation-toggle input:checked + .toggle-track::after { transform: translateX(16px); }
+.automation-toggle input:focus-visible + .toggle-track { outline: 2px solid #d85f36; outline-offset: 2px; }
+.automation-toggle strong { display: block; color: #263b30; font-size: .84rem; }
+.automation-toggle small { display: block; margin-top: 2px; color: #737b72; font-size: .72rem; line-height: 1.4; }
+.automation-toggle.disabled { cursor: default; opacity: .65; }
+.automation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.automation-number { display: grid; gap: 5px; color: #5e675f; font-size: .72rem; font-weight: 600; }
+.automation-number input, .automation-number textarea { width: 100%; padding: 8px 10px; border: 1px solid #d7d4c8; background: #faf8f2; color: #263b30; font: inherit; font-size: .84rem; font-weight: 400; }
+.automation-number textarea { min-height: 60px; resize: vertical; }
+.automation-note { margin: 0; color: #737b72; font-size: .74rem; line-height: 1.5; }
+.automation-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.automation-actions .cancel-action { border: 0; padding: 9px 11px; font-size: .72rem; font-weight: 700; }
+.automation-event { align-items: flex-start; }
+.automation-event > div:first-child { min-width: 0; }
+.pending-user .automation-badge { display: inline-block; margin: 0 0 6px; padding: 2px 8px; border-radius: 10px; font-size: .64rem; font-weight: 700; }
+.pending-user .automation-badge.auto_approved { color: #2d5a3a; background: #e3efe5; }
+.pending-user .automation-badge.pending { color: #8a5a00; background: #fdf3d7; }
 .auth-tabs { display: flex; gap: 18px; margin-bottom: 32px; border-bottom: 1px solid #d7d4c8; }
 .auth-tabs button { padding: 0 0 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #8a8f86; font-size: .75rem; font-weight: 700; }
 .auth-tabs button.selected { color: #263b30; border-bottom-color: #d85f36; }
@@ -362,6 +391,8 @@ footer { display: flex; justify-content: space-between; padding-top: 66px; color
 
 /* Telefon */
 @media (max-width: 640px) {
+  .automation-grid { grid-template-columns: 1fr; }
+  .automation-event { flex-direction: column; align-items: stretch; }
   .admin-review { flex-direction: column; align-items: stretch; }
   .admin-review .pending-actions { flex-direction: row; flex-wrap: wrap; }
   .my-reviews { padding: 20px 16px; }

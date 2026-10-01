@@ -37,3 +37,7 @@ services:
       # Client ID-ul OAuth din Google Cloud, pentru „Continuă cu Google” (același ca VITE_GOOGLE_CLIENT_ID pe Cloudflare).
       - key: GOOGLE_CLIENT_ID
         sync: false
+      # Opțional: cheia de la console.anthropic.com pentru verificarea anunțurilor cu AI (Claude Haiku).
+      # Fără ea, anunțurile sunt verificate doar cu regulile gratuite.
+      - key: ANTHROPIC_API_KEY
+        sync: false

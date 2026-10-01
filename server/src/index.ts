@@ -11,6 +11,7 @@ import listingsRouter from './routes/listings.js';
 import dashboardRouter from './routes/dashboard.js';
 import ordersRouter from './routes/orders.js';
 import reviewsRouter from './routes/reviews.js';
+import { startDigestScheduler } from './util/moderation.js';
 
 const app = express();
 
@@ -49,6 +50,7 @@ migrate()
   .then(() => {
     app.listen(env.port, () => {
       console.log(`Server is listening on http://localhost:${env.port}`);
+      startDigestScheduler();
     });
   })
   .catch((error) => {

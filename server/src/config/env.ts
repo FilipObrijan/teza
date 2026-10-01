@@ -35,4 +35,8 @@ export const env = {
   brevoApiKey: process.env.BREVO_API_KEY ?? '',
   // Client ID-ul OAuth din Google Cloud Console; gol = logarea cu Google e dezactivată.
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+  // Cheia de la console.anthropic.com pentru verificarea anunțurilor cu AI; gol = verificarea AI e dezactivată.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
+  anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001',
+  anthropicBaseUrl: (process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com').replace(/\/$/, ''),
 };

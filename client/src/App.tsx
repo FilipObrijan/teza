@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import GoogleSignInButton, { isGoogleSignInEnabled } from './GoogleSignIn';
 import Messenger from './Messenger';
+import { AdminAutomation } from './AdminAutomation';
 import { AdminReviews, MyReviews, RatingBadge, ReviewFormModal, ReviewsModal } from './Reviews';
 import { API_BASE, AuthUser, RatingSummary, orderStatusClass, orderStatusLabel } from './shared';
 
@@ -40,6 +41,8 @@ type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
 type PendingUser = AuthUser & {
   phone?: string;
   region?: string;
+  emailVerified?: boolean;
+  moderationReasons?: string[];
 };
 
 type PendingListing = {
@@ -52,6 +55,7 @@ type PendingListing = {
   sellerName: string;
   sellerEmail: string;
   imageUrl?: string | null;
+  moderationReasons?: string[];
 };
 
 type DashboardData = {
@@ -117,6 +121,12 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     const timer = window.setTimeout(() => setActionError(''), 6000);
     return () => window.clearTimeout(timer);
   }, [actionError]);
+  const [actionNotice, setActionNotice] = useState('');
+  useEffect(() => {
+    if (!actionNotice) return;
+    const timer = window.setTimeout(() => setActionNotice(''), 6000);
+    return () => window.clearTimeout(timer);
+  }, [actionNotice]);
   const [editingOrder, setEditingOrder] = useState<EditableOrder | null>(null);
   const [editedOrderQuantity, setEditedOrderQuantity] = useState('');
   const [editedOrderNotes, setEditedOrderNotes] = useState('');
@@ -349,6 +359,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
       resetListingForm();
       setIsListingFormOpen(false);
+      if (data.message) setActionNotice(data.message);
       await loadDashboard();
     } catch (error) {
       setListingError(error instanceof Error ? error.message : (editingListingId ? 'Eroare la salvarea modificărilor.' : 'Eroare la crearea anunțului.'));
@@ -374,6 +385,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
     <section className="dashboard-shell">
       {reviewsUserId && <ReviewsModal userId={reviewsUserId} onClose={() => setReviewsUserId(null)} />}
       {reviewOrder && <ReviewFormModal orderId={reviewOrder.id} partnerName={reviewOrder.partnerName} onClose={() => setReviewOrder(null)} onSaved={() => { void loadDashboard(); setReviewsRefreshKey((key) => key + 1); }} />}
+      {actionNotice && <div className="action-toast notice" role="status"><span>{actionNotice}</span><button type="button" onClick={() => setActionNotice('')} aria-label="Închide mesajul">×</button></div>}
       {actionError && <div className="action-toast" role="alert"><span>{actionError}</span><button type="button" onClick={() => setActionError('')} aria-label="Închide mesajul">×</button></div>}
       {editingOrder && <div className="modal-backdrop" onClick={() => setEditingOrder(null)}><section className="listing-modal" onClick={(event) => event.stopPropagation()}><button className="close-button" onClick={() => setEditingOrder(null)} aria-label="Inchide">x</button><p className="kicker">Editează comanda</p><h2>{editingOrder.productName}</h2><p>Modifică detaliile și retrimite comanda către vânzător.</p><p className="dashboard-muted">Stoc disponibil acum: {editingOrder.availableQuantityKg.toLocaleString('ro-RO')} kg</p><form className="listing-form" onSubmit={submitOrderEdit}><label>Cantitate dorită (kg)<input required min="0.01" max={editingOrder.availableQuantityKg} step="0.01" type="number" value={editedOrderQuantity} onChange={(event) => setEditedOrderQuantity(event.target.value)} /></label><label>Mesaj pentru vânzător <span className="optional-label">(opțional)</span><textarea value={editedOrderNotes} onChange={(event) => setEditedOrderNotes(event.target.value)} placeholder="Scrie un mesaj despre comandă..." /></label><button className="primary-action" type="submit" disabled={isOrderEditing}>{isOrderEditing ? 'Se salvează...' : 'Salvează și retrimite'}</button></form></section></div>}
       {confirmation && <div className="confirmation-backdrop" role="presentation"><section className="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="confirmation-title"><span className="confirmation-mark">!</span><p className="kicker">Confirmă acțiunea</p><h2 id="confirmation-title">Ești sigur?</h2><p>{confirmation.message}</p><div className="confirmation-actions"><button type="button" className="cancel-action" onClick={() => setConfirmation(null)}>Renunță</button><button type="button" className="confirm-action" onClick={async () => { const action = confirmation.action; setConfirmation(null); await action(); }}>Confirmă</button></div></section></div>}
@@ -418,8 +430,12 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<'queue' | 'automation' | 'reviews'>('queue');
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingListings, setPendingListings] = useState<PendingListing[]>([]);
+  // Conturile neconfirmate nu pot intra oricum; în coadă apar doar cele cu emailul verificat.
+  const verifiedPendingUsers = pendingUsers.filter((user) => user.emailVerified !== false);
+  const unverifiedCount = pendingUsers.length - verifiedPendingUsers.length;
   const [adminError, setAdminError] = useState('');
   const [activeView, setActiveView] = useState<'catalog' | 'dashboard'>('catalog');
   const [catalogListings, setCatalogListings] = useState<Listing[]>([]);
@@ -640,7 +656,7 @@ export default function App() {
         setAuthForm((current) => ({ ...current, password: '' }));
         setAuthMode('login');
       } else {
-        setAuthMessage('Cont creat. Verifică emailul cu codul primit, apoi așteaptă aprobarea administratorului.');
+        setAuthMessage(data.message ?? 'Cont creat. Verifică emailul cu codul primit.');
         setAuthMode('verify');
         setAuthForm((current) => ({ ...current, password: '' }));
       }
@@ -863,15 +879,23 @@ export default function App() {
       {isAdminOpen && <div className="modal-backdrop" onClick={() => setIsAdminOpen(false)}><section className="admin-modal" onClick={(event) => event.stopPropagation()}>
         <button className="close-button" onClick={() => setIsAdminOpen(false)} aria-label="Inchide">x</button>
         <p className="kicker">Administrare</p>
-        <h2>Cereri de aprobare</h2>
-        <p className="admin-summary">Conturile și anunțurile noi apar aici până când le aprobi. Mai jos poți modera recenziile.</p>
+        <h2>Panou admin</h2>
+        <div className="review-tabs admin-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={adminTab === 'queue'} className={adminTab === 'queue' ? 'active' : ''} onClick={() => setAdminTab('queue')}>De aprobat ({verifiedPendingUsers.length + pendingListings.length})</button>
+          <button type="button" role="tab" aria-selected={adminTab === 'automation'} className={adminTab === 'automation' ? 'active' : ''} onClick={() => setAdminTab('automation')}>Automatizare</button>
+          <button type="button" role="tab" aria-selected={adminTab === 'reviews'} className={adminTab === 'reviews' ? 'active' : ''} onClick={() => setAdminTab('reviews')}>Recenzii</button>
+        </div>
         {adminError && <p className="auth-feedback error">{adminError}</p>}
-        <p className="admin-section-label">Utilizatori</p>
-        {pendingUsers.length === 0 ? <p className="empty-admin">Nu există conturi în așteptare.</p> : <div className="pending-list">{pendingUsers.map((user) => <article className="pending-user" key={user.id}><div><strong>{user.fullName}</strong><span>{user.email} / {user.role === 'seller' ? 'Vânzător' : 'Distribuitor'}</span><small>{user.region || 'Regiune nespecificată'}</small></div><div className="pending-actions"><button className="approve-button" onClick={() => updateUserStatus(user.id, 'approved')}>Aprobă</button><button className="reject-button" onClick={() => updateUserStatus(user.id, 'rejected')}>Respinge</button></div></article>)}</div>}
-        <p className="admin-section-label">Anunțuri</p>
-        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small></div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
-        <p className="admin-section-label">Recenzii</p>
-        <AdminReviews />
+        {adminTab === 'queue' && <>
+          <p className="admin-summary">Aici ajung doar conturile și anunțurile pe care regulile automate nu le-au putut aproba, cu motivul.</p>
+          <p className="admin-section-label">Utilizatori</p>
+        {verifiedPendingUsers.length === 0 ? <p className="empty-admin">Nu există conturi în așteptare.</p> : <div className="pending-list">{verifiedPendingUsers.map((user) => <article className="pending-user" key={user.id}><div><strong>{user.fullName}</strong><span>{user.email} / {user.role === 'seller' ? 'Vânzător' : 'Distribuitor'}</span><small>{user.region || 'Regiune nespecificată'}</small>{(user.moderationReasons?.length ?? 0) > 0 && <p className="moderation-reasons">{user.moderationReasons!.join(' ')}</p>}</div><div className="pending-actions"><button className="approve-button" onClick={() => updateUserStatus(user.id, 'approved')}>Aprobă</button><button className="reject-button" onClick={() => updateUserStatus(user.id, 'rejected')}>Respinge</button></div></article>)}</div>}
+        {unverifiedCount > 0 && <p className="admin-footnote">{unverifiedCount === 1 ? 'Un cont nou nu și-a confirmat' : `${unverifiedCount} conturi noi nu și-au confirmat`} încă emailul; apar aici după confirmare.</p>}
+          <p className="admin-section-label">Anunțuri</p>
+        {pendingListings.length === 0 ? <p className="empty-admin">Nu există anunțuri în așteptare.</p> : <div className="pending-list">{pendingListings.map((listing) => <article className="pending-user" key={listing.id}><div className="pending-listing-info">{listing.imageUrl && <img className="pending-listing-image" src={`${API_BASE}/api/listings/${listing.id}/image`} alt={listing.productName} />}<div><strong>{listing.productName} / {listing.variety}</strong><span>{listing.quantityKg.toLocaleString('ro-RO')} kg la {listing.pricePerKg.toFixed(2)} lei/kg</span><small>{listing.sellerName} / {listing.region}</small>{(listing.moderationReasons?.length ?? 0) > 0 && <p className="moderation-reasons">{listing.moderationReasons!.join(' ')}</p>}</div></div><div className="pending-actions"><button className="approve-button" onClick={() => updateListingStatus(listing.id, 'active')}>Aprobă</button><button className="reject-button" onClick={() => updateListingStatus(listing.id, 'archived')}>Respinge</button><button className="delete-admin-button" onClick={() => deleteAdminListing(listing.id)}>Șterge</button></div></article>)}</div>}
+        </>}
+        {adminTab === 'automation' && <AdminAutomation />}
+        {adminTab === 'reviews' && <AdminReviews />}
       </section></div>}
 
       {reviewsUserId && <ReviewsModal userId={reviewsUserId} onClose={() => setReviewsUserId(null)} />}

@@ -8,7 +8,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
-import { notifyAdminsPendingListing } from '../util/notifications.js';
+import { moderateListing } from '../util/moderation.js';
 import { mapRating, ratingColumns } from '../util/ratings.js';
 
 const router = Router();
@@ -39,8 +39,9 @@ const listingSchema = z.object({
   pricePerKg: z.coerce.number().nonnegative(),
   unitMeasure: z.string().trim().min(1).max(20).default('kg'),
   region: z.string().trim().min(2).max(100),
-  harvestDate: z.string().date().optional().nullable(),
-  deliveryTerms: z.string().trim().max(255).optional().nullable(),
+  // Formularul trimite câmpurile opționale goale ca text gol; le tratăm ca lipsă.
+  harvestDate: z.preprocess((value) => (value === '' ? null : value), z.string().date().optional().nullable()),
+  deliveryTerms: z.preprocess((value) => (value === '' ? null : value), z.string().trim().max(255).optional().nullable()),
 });
 
 const statusUpdateSchema = z.object({
@@ -173,8 +174,14 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
       ],
     );
 
-    notifyAdminsPendingListing(result.rows[0].id);
-    return res.status(201).json({ listing: mapListing(result.rows[0]) });
+    const listing = result.rows[0];
+    const moderation = await moderateListing(listing.id);
+    const published = moderation?.status === 'active';
+
+    return res.status(201).json({
+      listing: mapListing({ ...listing, status: moderation?.status ?? listing.status }),
+      message: published ? 'Anunțul a fost publicat.' : 'Anunțul a fost trimis spre verificare și va apărea în catalog după aprobare.',
+    });
   } catch (error) {
     console.error('Create listing error:', error);
     return res.status(500).json({ message: 'Eroare la crearea ofertei.' });
@@ -228,7 +235,15 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
       return res.status(404).json({ message: 'Oferta nu a fost găsită sau nu îți aparține.' });
     }
 
-    return res.status(200).json({ listing: mapListing(result.rows[0]) });
+    // Anunțurile publicate sau în așteptare trec din nou prin verificare, ca o editare să nu ocolească moderarea.
+    const listing = result.rows[0];
+    const moderation = ['active', 'pending'].includes(listing.status) ? await moderateListing(listing.id, { edited: true }) : null;
+    const status = moderation?.status ?? listing.status;
+
+    return res.status(200).json({
+      listing: mapListing({ ...listing, status }),
+      ...(listing.status === 'active' && status === 'pending' ? { message: 'Modificările trebuie verificate; anunțul revine în catalog după aprobare.' } : {}),
+    });
   } catch (error) {
     console.error('Update listing error:', error);
     return res.status(500).json({ message: 'Eroare la editarea ofertei.' });

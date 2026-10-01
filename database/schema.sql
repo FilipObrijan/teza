@@ -36,6 +36,7 @@ CREATE TABLE product_listings (
   image_url VARCHAR(500),
   image_data BYTEA,
   status listing_status NOT NULL DEFAULT 'pending',
+  approved_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -121,7 +122,31 @@ CREATE TABLE email_verification_tokens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE app_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE moderation_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject_type VARCHAR(20) NOT NULL CHECK (subject_type IN ('user', 'listing')),
+  subject_id UUID NOT NULL,
+  outcome VARCHAR(20) NOT NULL CHECK (outcome IN ('auto_approved', 'pending')),
+  reasons TEXT[] NOT NULL DEFAULT '{}',
+  ai_checked BOOLEAN NOT NULL DEFAULT false,
+  edited BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE admin_digests (
+  window_start TIMESTAMPTZ PRIMARY KEY,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_users_role_status ON users(role, status);
+CREATE INDEX idx_moderation_events_created ON moderation_events(created_at);
+CREATE INDEX idx_moderation_events_subject ON moderation_events(subject_id);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_listings_seller_id ON product_listings(seller_id);
 CREATE INDEX idx_listings_region_status ON product_listings(region, status);
