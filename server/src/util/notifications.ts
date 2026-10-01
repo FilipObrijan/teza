@@ -198,6 +198,54 @@ export const notifyNewMessage = (messageId: string) =>
     });
   });
 
+const REVIEW_QUERY = `
+  SELECT r.rating, r.comment, r.reply, pl.product_name,
+         reviewer.full_name AS reviewer_name, reviewer.email AS reviewer_email,
+         reviewee.full_name AS reviewee_name, reviewee.email AS reviewee_email
+  FROM reviews r
+  JOIN users reviewer ON reviewer.id = r.reviewer_id
+  JOIN users reviewee ON reviewee.id = r.reviewee_id
+  JOIN orders o ON o.id = r.order_id
+  JOIN product_listings pl ON pl.id = o.listing_id
+  WHERE r.id = $1
+`;
+
+const starsText = (rating: number) => `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${rating}/5)`;
+
+// Celui evaluat: a primit o recenzie nouă sau i s-a modificat una.
+export const notifyNewReview = (reviewId: string, { updated = false } = {}) =>
+  runInBackground('review/new', async () => {
+    const review = (await pool.query(REVIEW_QUERY, [reviewId])).rows[0];
+    if (!review?.reviewee_email) return;
+
+    await sendNotification(review.reviewee_email, {
+      subject: updated ? `${review.reviewer_name} și-a modificat recenzia` : `Recenzie nouă de la ${review.reviewer_name}`,
+      lines: [
+        updated
+          ? `${review.reviewer_name} și-a modificat recenzia despre colaborarea pentru ${review.product_name}.`
+          : `${review.reviewer_name} ți-a lăsat o recenzie pentru colaborarea pentru ${review.product_name}.`,
+        `Nota: ${starsText(review.rating)}`,
+        ...(review.comment ? [`„${review.comment}”`] : []),
+        'Poți răspunde public din cabinet, secțiunea „Recenziile mele”.',
+      ],
+    });
+  });
+
+// Autorului recenziei: cel evaluat i-a răspuns.
+export const notifyReviewReply = (reviewId: string) =>
+  runInBackground('review/reply', async () => {
+    const review = (await pool.query(REVIEW_QUERY, [reviewId])).rows[0];
+    if (!review?.reviewer_email || !review.reply) return;
+
+    await sendNotification(review.reviewer_email, {
+      subject: `${review.reviewee_name} a răspuns la recenzia ta`,
+      lines: [
+        `${review.reviewee_name} a răspuns la recenzia ta despre ${review.product_name}:`,
+        `„${review.reply}”`,
+      ],
+    });
+  });
+
 export const notifyDistributorsNewListing =(listingId: string) =>
   runInBackground('distributors/new-listing', async () => {
     const [listingResult, distributorsResult] = await Promise.all([

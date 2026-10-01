@@ -83,6 +83,10 @@ export async function migrate() {
     )
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_reviews_reviewee ON reviews(reviewee_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_reviews_reviewer ON reviews(reviewer_id)');
+  // Răspunsul public al celui evaluat (ca pe Google Maps).
+  await pool.query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply TEXT');
+  await pool.query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_at TIMESTAMPTZ');
 
   // Logarea cu Google: contul se leagă de identificatorul Google, iar parola devine opțională.
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE');

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
+import { REVIEW_COLUMNS, REVIEW_JOINS, mapReview } from './reviews.js';
 import { notifyDistributorsNewListing } from '../util/notifications.js';
 
 const router = Router();
@@ -176,6 +177,56 @@ router.patch('/listings/:id/status', async (req, res) => {
   } catch (error) {
     console.error('Update listing status error:', error);
     return res.status(500).json({ message: 'Eroare la actualizarea anunțului.' });
+  }
+});
+
+// Moderarea recenziilor: cele mai noi primele, cu căutare după nume, produs sau text.
+router.get('/reviews', async (req, res) => {
+  const search = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT ${REVIEW_COLUMNS} FROM reviews r ${REVIEW_JOINS}
+        WHERE $1 = '' OR CONCAT_WS(' ', reviewer.full_name, reviewee.full_name, pl.product_name, r.comment, r.reply) ILIKE '%' || $1 || '%'
+        ORDER BY r.updated_at DESC
+        LIMIT 100
+      `,
+      [search],
+    );
+    return res.status(200).json({ reviews: result.rows.map(mapReview) });
+  } catch (error) {
+    console.error('Admin list reviews error:', error);
+    return res.status(500).json({ message: 'Eroare la încărcarea recenziilor.' });
+  }
+});
+
+router.delete('/reviews/:id', async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success) return res.status(400).json({ message: 'ID invalid.' });
+
+  try {
+    const result = await pool.query('DELETE FROM reviews WHERE id = $1', [idResult.data]);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Recenzia nu a fost găsită.' });
+    return res.status(200).json({ message: 'Recenzia a fost ștearsă.' });
+  } catch (error) {
+    console.error('Admin delete review error:', error);
+    return res.status(500).json({ message: 'Eroare la ștergerea recenziei.' });
+  }
+});
+
+// Doar răspunsul, când recenzia e în regulă dar răspunsul e abuziv.
+router.delete('/reviews/:id/reply', async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success) return res.status(400).json({ message: 'ID invalid.' });
+
+  try {
+    const result = await pool.query('UPDATE reviews SET reply = NULL, reply_at = NULL WHERE id = $1', [idResult.data]);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Recenzia nu a fost găsită.' });
+    return res.status(200).json({ message: 'Răspunsul a fost șters.' });
+  } catch (error) {
+    console.error('Admin delete reply error:', error);
+    return res.status(500).json({ message: 'Eroare la ștergerea răspunsului.' });
   }
 });
 

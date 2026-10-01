@@ -95,6 +95,8 @@ CREATE TABLE reviews (
   reviewee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
+  reply TEXT,
+  reply_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (order_id, reviewer_id)
@@ -128,6 +130,8 @@ CREATE INDEX idx_orders_listing_id ON orders(listing_id);
 CREATE INDEX idx_messages_order_id ON order_messages(order_id);
 CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
 CREATE INDEX idx_email_verification_tokens_user ON email_verification_tokens(user_id);
+CREATE INDEX idx_reviews_reviewee ON reviews(reviewee_id);
+CREATE INDEX idx_reviews_reviewer ON reviews(reviewer_id);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
