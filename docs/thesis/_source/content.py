@@ -36,8 +36,8 @@ CH1 = [
 ('p', "The chapter is organised as follows. Subchapter 1.1 describes the field, the participants and the current "
       "(AS-IS) process. Subchapter 1.2 formulates the problems together with their causes and consequences. "
       "Subchapter 1.3 reviews similar systems available on the market and ends with the SWOT analysis of the "
-      "proposed idea. Subchapter 1.4 presents the preliminary feedback from potential users and the profiles of "
-      "the target users (personas). The technical specification and the functional and non-functional requirements "
+      "proposed idea. Subchapter 1.4 describes the target users, the working hypotheses about their needs together "
+      "with the plan for validating them through interviews, and the profiles of the target users (personas). The technical specification and the functional and non-functional requirements "
       "that follow from these findings are formulated in subchapters 1.5 and 1.6."),
 
 ('h2', "1.1 Analysis of the field of study"),
@@ -233,25 +233,37 @@ CH1 = [
       "for keeping track of stock and orders, even before the network of buyers grows. This conclusion is taken "
       "into account when formulating the requirements in the following subchapters."),
 
-('h2', "1.4 Target users and preliminary feedback"),
-('p', "The previous subchapters were based mostly on documents and on the analysis of other products. To check "
-      "whether the assumptions match the experience of real people, preliminary feedback was collected from "
-      "potential users of the platform. Two instruments were used: a short online questionnaire and semi-structured "
-      "interviews of 15–20 minutes. The questions, given in Appendix B, focus on how the respondents sell or buy "
-      "today, what takes them the most time and what they would expect from an online platform."),
-('p', "The interviews were held with representatives of the three types of users identified in subchapter 1.1: "
-      "a producer, a distributor and a buyer from the HoReCa or retail segment. Table 1.6 summarises the answers "
-      "in a short form."),
-('table', "Table 1.6 – Summary of the preliminary interviews",
-    ["Respondent", "How the activity is carried out today", "Main difficulties", "Expectations from the platform"],
-    [["R1, vegetable producer", "[to be completed with the respondent's answers]", "[to be completed]", "[to be completed]"],
-     ["R2, distributor", "[to be completed with the respondent's answers]", "[to be completed]", "[to be completed]"],
-     ["R3, HoReCa or retail buyer", "[to be completed with the respondent's answers]", "[to be completed]", "[to be completed]"]],
-    [3.4, 4.6, 4.5, 4.5], 'highlight'),
-('ph', "[Paragraph to be written from the real results: number of questionnaire respondents, the most frequent "
-       "answers (for example, the share of respondents who arrange orders by phone), quotes from the interviews "
-       "that confirm or contradict the problems from Table 1.2, and any new need that was not anticipated.]"),
-('p', "Based on the domain analysis and on the answers of the respondents, the target users were described "
+('h2', "1.4 Target users and needs analysis"),
+('p', "The previous subchapters were based mostly on documents and on the analysis of other products. Before the "
+      "requirements are fixed, these conclusions have to be checked against the experience of the people who would "
+      "actually use the platform. For this purpose, preliminary feedback is collected from potential users through "
+      "two instruments: a short online questionnaire and semi-structured interviews of 15–20 minutes. The questions, "
+      "given in Appendix B, focus on how the respondents sell or buy today, what takes them the most time and what "
+      "they would expect from an online platform."),
+('p', "Three respondent profiles were selected, matching the types of users identified in subchapter 1.1: a vegetable "
+      "producer, a distributor and a buyer from the HoReCa or retail segment. At the time of writing, the interviews "
+      "with these respondents are scheduled but have not yet taken place. For this reason, the expected answers of "
+      "each profile were formulated in advance as working hypotheses, derived from the field analysis and from the "
+      "problems listed in Table 1.2. Table 1.6 presents these hypotheses. They are not interview results and will be "
+      "confirmed, corrected or replaced by the real answers."),
+('table', "Table 1.6 – Working hypotheses about the needs of each respondent profile",
+    ["Respondent profile", "Expected current practice", "Expected main difficulties", "Expected needs from the platform"],
+    [["R1, vegetable producer (10–30 ha)", "Sells most of the harvest by phone to a few regular buyers, the rest through resellers or ads on 999.md", "Too much time spent on calls in the harvest peak, last-minute cancellations, pressure on price from resellers", "Publishing an offer from the phone in a few minutes, seeing all orders in one place, notifications"],
+     ["R2, distributor", "Orders weekly from 10–15 producers by phone and Viber, keeps the orders in an Excel file", "Does not know the real availability before calling, has to call several producers to complete one order", "Search by product and region, real stock on each listing, order history, reviews of suppliers"],
+     ["R3, HoReCa or retail buyer", "Buys from one or two distributors and sometimes directly from farmers at the market", "Unstable quality and availability of fresh produce, few alternatives when a supplier fails", "Quick access to alternative suppliers, simple ordering, information about the producer"]],
+    [3.4, 4.6, 4.5, 4.5]),
+('p', "To make the validation concrete, the hypotheses were reduced to five statements that can be checked during "
+      "the interviews. A statement is considered confirmed if at least two of the three respondents support it:"),
+('list', ["H1 – most wholesale deals of the respondents are arranged by phone or in messengers;",
+          "H2 – the respondents have faced at least once per season a cancelled order or a lot promised to two buyers;",
+          "H3 – the lack of trust is the main reason for not working with new partners;",
+          "H4 – the respondents would publish offers or order online if the operation takes only a few minutes from a phone;",
+          "H5 – buyers value up-to-date stock information at least as much as a lower price."]),
+('p', "The hypotheses that are not confirmed will lead to changes in the requirements formulated in subchapters 1.5 "
+      "and 1.6, and any new need mentioned by the respondents will be added to the list of problems from Table 1.2. "
+      "The same respondents are also planned to take part later in the testing of the prototype, so that the "
+      "platform is evaluated by the people whose needs it is meant to solve."),
+('p', "Based on the domain analysis and on the working hypotheses above, the target users were described "
       "with the help of personas. A persona is a fictional but realistic profile that brings together the typical "
       "goals, habits and frustrations of a group of users [14]. Personas help to keep the design focused on concrete "
       "people instead of an abstract \"user\". Two main personas were defined, one for each side of the "
