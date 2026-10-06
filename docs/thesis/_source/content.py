@@ -191,6 +191,10 @@ CH1 = [
      ["Agromag.md", "Agrobiznes, Moldova, 2022", "Commission or fees paid by supplier companies", "Marketplace of agricultural inputs and equipment from verified suppliers"],
      ["999.md", "Simpals, Moldova, 1999", "Free basic ads, paid promotion of ads", "General classified ads, including agricultural products"]],
     [2.6, 3.8, 4.8, 5.8]),
+('p', "Table 1.3 shows that the five systems earn money in very different ways. The international platforms rely "
+      "on service fees, software licences or a margin on the goods, which makes sense for large companies but is a "
+      "barrier for a farmer who sells a few lots per season. Only 999.md can be used free of charge, and it is also "
+      "the least specialised of the five."),
 ('p', "To compare the systems in a way that is relevant for the problem from subchapter 1.2, a set of criteria was "
       "derived from the problems listed in Table 1.2. The evaluation is qualitative and is based on the publicly "
       "available description of each product. As can be seen in Table 1.4, each system covers part of the needs, "
@@ -279,6 +283,8 @@ CH1 = [
      ["Frustrations", "Spends hours on calls, buyers cancel at the last moment, intermediaries push prices down, has to remember who promised what"],
      ["What would help", "Publishing an offer from the phone in a few minutes, seeing all orders in one place, being notified when someone orders"]],
     [3.5, 13.5]),
+('p', "Ion is not against technology, but he will not spend an evening learning a new system during the harvest. "
+      "For him a platform is useful only if it saves time from the very first offer he publishes."),
 ('p', "The second persona, presented in Table 1.8, describes the other side of the transaction: a buyer who "
       "needs regular deliveries and spends a large part of the working day coordinating suppliers."),
 ('table', "Table 1.8 – Persona 2: the distributor (wholesale buyer)",

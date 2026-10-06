@@ -328,6 +328,45 @@ p = body_par("Questions for wholesale buyers (distributors, HoReCa, retail):", i
 for i, q in enumerate(C.Q_BUYERS):
     qp = body_par("%s) %s" % ("abcdefghij"[i], q)); qp.paragraph_format.first_line_indent = Cm(-0.6); qp.paragraph_format.left_indent = Cm(1.85)
 
+# ---------- pagination rules: no table/figure at the top or bottom of a page, never split ----------
+def kwn(el):
+    if el is not None and el.tag == qn('w:p'):
+        docx.text.paragraph.Paragraph(el, d._body).paragraph_format.keep_with_next = True
+
+def prev_text_par(el):
+    p = el.getprevious()
+    while p is not None and p.tag == qn('w:p') and not ''.join(t.text or '' for t in p.iter(qn('w:t'))).strip():
+        p = p.getprevious()
+    return p
+
+started = False
+for el in list(body.iterchildren()):
+    if el.tag == qn('w:p') and ''.join(t.text or '' for t in el.iter(qn('w:t'))).strip() == 'INTRODUCTION':
+        started = True
+    if not started:
+        continue
+    if el.tag == qn('w:tbl'):
+        # whole table on one page and kept together with the text that follows it
+        for p in el.iter(qn('w:p')):
+            kwn(p)
+        nxt = el.getnext()
+        while nxt is not None and nxt.tag == qn('w:p') and not ''.join(t.text or '' for t in nxt.iter(qn('w:t'))).strip():
+            kwn(nxt); nxt = nxt.getnext()
+        # caption and at least the end of the previous paragraph stay above the table
+        cap = el.getprevious()
+        kwn(cap)
+        before_cap = prev_text_par(cap)
+        # do not glue a paragraph that already follows another table/figure, otherwise long chains form
+        bb = before_cap.getprevious() if before_cap is not None else None
+        while bb is not None and bb.tag == qn('w:p') and not ''.join(t.text or '' for t in bb.iter(qn('w:t'))).strip() and bb.find('.//' + qn('w:drawing')) is None:
+            bb = bb.getprevious()
+        if bb is None or bb.tag != qn('w:tbl'):
+            kwn(before_cap)
+    elif el.tag == qn('w:p') and el.find('.//' + qn('w:drawing')) is not None:
+        kwn(el)                       # picture stays with its caption
+        kwn(el.getnext())             # caption stays with the following text
+        kwn(prev_text_par(el))        # previous text stays above the picture
+
 # ---------- table of contents ----------
 sdt = body.find(qn('w:sdt'))
 sc = sdt.find(qn('w:sdtContent'))
