@@ -2,7 +2,7 @@
 
 Raportul `../PBL_Report_Obrijan_Filip_FAF232.docx` este generat din aceste fișiere, pe baza template-ului oficial (`template.docx`).
 
-- `content.py` – textul capitolelor, tabelele, bibliografia
+- `content.py` – textul capitolelor, tabelele, bibliografia (citările se scriu `[@cheie]` și se numerotează automat în ordinea apariției)
 - `fig.py` – desenează Figure 1.1 (`fig1_1.png`)
 - `build.py` – asamblează documentul Word
 - `pages.py` – calculează numerele de pagină pentru cuprins (necesită LibreOffice)

@@ -16,6 +16,7 @@ ABBREVIATIONS = [
     ("NBS", "National Bureau of Statistics of the Republic of Moldova"),
     ("SaaS", "Software as a Service"),
     ("SWOT", "Strengths, Weaknesses, Opportunities, Threats"),
+    ("UVP", "Unique Value Proposition"),
     ("TO-BE", "Target state of a business process, after the introduction of the new system"),
 ]
 
@@ -36,22 +37,23 @@ CH1 = [
 ('p', "The chapter is organised as follows. Subchapter 1.1 describes the field, the participants and the current "
       "(AS-IS) process. Subchapter 1.2 formulates the problems together with their causes and consequences. "
       "Subchapter 1.3 reviews similar systems available on the market and ends with the SWOT analysis of the "
-      "proposed idea. Subchapter 1.4 describes the target users, the working hypotheses about their needs together "
-      "with the plan for validating them through interviews, and the profiles of the target users (personas). The technical specification and the functional and non-functional requirements "
-      "that follow from these findings are formulated in subchapters 1.5 and 1.6."),
+      "proposed idea. Subchapter 1.4 presents the plan of the preliminary user research and the working hypotheses "
+      "about the needs of the users. Subchapter 1.5 defines the target audience segments, the key problems solved by "
+      "the platform and its unique value proposition. The technical specification and the functional and "
+      "non-functional requirements that follow from these findings are formulated in subchapter 1.6."),
 
 ('h2', "1.1 Analysis of the field of study"),
 ('p', "Agriculture has always held a special place in the Moldovan economy, even though its direct share has "
       "been shrinking for years. Together with the food processing industry, the agri-food sector represents more "
-      "than 18 percent of the gross domestic product and roughly 45 percent of the country's exports [1]. "
-      "Agriculture taken alone accounted for about 7.1 percent of GDP in 2024 [2]. The same year showed how "
+      "than 18 percent of the gross domestic product and roughly 45 percent of the country's exports [@trade]. "
+      "Agriculture taken alone accounted for about 7.1 percent of GDP in 2024 [@bne]. The same year showed how "
       "exposed the sector is to weather: the gross agricultural production reached only 85.4 percent of the "
-      "2023 level in comparable prices, with crop production falling by 22.9 percent [3]. In a weak year every "
+      "2023 level in comparable prices, with crop production falling by 22.9 percent [@nbs2024]. In a weak year every "
       "tonne that can be sold quickly and at a fair price matters more, which already says something about the "
       "need for faster sales channels."),
 ('p', "The sector is dominated by small and medium producers. The last general agricultural census counted "
-      "902,214 agricultural holdings in the country [4], most of them very small, and according to FAO, "
-      "smallholders and family farms generate more than 62 percent of the total agricultural output [5]. "
+      "902,214 agricultural holdings in the country [@census], most of them very small, and according to FAO, "
+      "smallholders and family farms generate more than 62 percent of the total agricultural output [@fao_small]. "
       "Such producers rarely have a sales department or a contract with a large retail chain. They sell what they "
       "grow through personal contacts, intermediaries and wholesale markets, and the quality of these contacts "
       "often decides how much of the harvest is sold and at what price."),
@@ -90,13 +92,13 @@ CH1 = [
     ["Tool", "What it is used for", "Main limitation"],
     [["Phone calls", "Searching for buyers, negotiating price and quantity, confirming delivery", "No written record, agreements are easy to forget or dispute"],
      ["Viber, Telegram and Facebook groups", "Announcing available products and current prices", "Offers get lost in the message flow, no stock, no order status"],
-     ["Classified ads websites (999.md)", "Publishing offers for a wide audience [6]", "Built for one-off sales, not for repeated wholesale orders"],
+     ["Classified ads websites (999.md)", "Publishing offers for a wide audience [@simpals]", "Built for one-off sales, not for repeated wholesale orders"],
      ["Notebook or Excel file", "Keeping track of stock, buyers and debts", "Not shared with the other party, updated manually and late"],
      ["Wholesale market", "Selling produce directly, mostly to resellers", "Requires transport and time, prices are pushed down by intermediaries"]],
     [4.0, 6.5, 6.5]),
 ('p', "A separate aspect specific to the field is perishability. FAO estimates that around 13 percent of the "
       "food produced worldwide is lost between harvest and retail, and fruit and vegetables have the highest "
-      "loss rates among all commodity groups [7]. For a producer of tomatoes or peppers, a delay of a few days "
+      "loss rates among all commodity groups [@fao_loss]. For a producer of tomatoes or peppers, a delay of a few days "
       "in finding a buyer means real losses, not just a lower price. For this reason the speed of finding a "
       "buyer and confirming an order is a key factor in this field, more than in most other types of B2B trade."),
 
@@ -137,7 +139,7 @@ CH1 = [
       "changing the commercial logic of the trade. This is also in line with the general shift of B2B buyers "
       "towards digital channels. A McKinsey survey shows that about a third of B2B customers prefer digital "
       "self-service at each stage of the purchase, and that e-commerce has become the top revenue channel for "
-      "companies that offer it [8]."),
+      "companies that offer it [@mckinsey]."),
 ('p', "It is equally important to state what remains outside the scope of the system. The platform does not "
       "process payments, does not issue fiscal documents and does not manage a fleet of vehicles. Physical "
       "transport is still organised by the parties. The optimisation of distribution flows addressed in this "
@@ -156,29 +158,29 @@ CH1 = [
 ('p', "Tridge is a B2B platform for international sourcing of agricultural and food products, founded in 2015 in "
       "Seoul, South Korea. It connects importers and exporters, offers market data such as prices and trade "
       "volumes, and provides support for quality checks and logistics. In 2022 the company was valued at about "
-      "2.7 billion US dollars [9]. Its strength is the global reach and the market intelligence it offers. For "
+      "2.7 billion US dollars [@tridge]. Its strength is the global reach and the market intelligence it offers. For "
       "the problem studied here, however, Tridge is too large in scale: it targets container-sized export deals, "
       "while a Moldovan farmer usually needs to sell a few tonnes to a buyer in the same region."),
 ('p', "Choco is an ordering platform founded in 2018 in Berlin that connects restaurants with their food "
-      "suppliers [10]. Restaurants use it for free to send orders to all their suppliers from one application, "
+      "suppliers [@choco]. Restaurants use it for free to send orders to all their suppliers from one application, "
       "and suppliers receive the orders in a structured form instead of calls and voice messages. The idea of "
       "replacing phone orders with a single order flow is very close to the one of this project. The main "
       "difference is that Choco digitalises relationships that already exist; it is not a place where a "
       "restaurant discovers new producers. It is also not available in Moldova."),
 ('p', "GrubMarket, founded in 2014 in San Francisco, combines a B2B e-commerce marketplace for food with "
       "WholesaleWare, a software suite for wholesalers and distributors that covers inventory, online ordering "
-      "and logistics [11]. It shows how valuable real-time stock and order management are in food distribution. "
+      "and logistics [@grubmarket]. It shows how valuable real-time stock and order management are in food distribution. "
       "At the same time, GrubMarket acts largely as a distributor itself, buying and reselling produce, and its "
       "software is designed for medium and large companies in the United States, at a price and complexity level "
       "that does not suit small producers."),
 ('p', "Agromag.md is the closest local example. It was launched in 2022 by Agrobiznes as a B2B marketplace for "
       "the agricultural sector of the Republic of Moldova and gathers more than a hundred agro-industrial "
-      "companies that sell seeds, fertilisers, plant protection products and equipment [12]. The platform has "
+      "companies that sell seeds, fertilisers, plant protection products and equipment [@agromag]. The platform has "
       "a Romanian interface and verified suppliers, which builds trust. However, the flow of goods goes in the "
       "opposite direction to the one studied here: Agromag sells inputs to farmers and does not help farmers "
       "sell their harvest."),
 ('p', "999.md, owned by the Simpals group, is the largest classified ads website in Moldova and has a separate "
-      "section for agricultural products [6]. Its advantages are an enormous audience, free basic ads and the fact "
+      "section for agricultural products [@simpals]. Its advantages are an enormous audience, free basic ads and the fact "
       "that practically every farmer already knows how to use it. Its limits are also clear: an announcement has "
       "no stock, there is no order, the communication continues by phone and there is no verification of sellers "
       "for this kind of trade. 999.md is therefore an indirect competitor and, at the same time, the main habit "
@@ -228,8 +230,8 @@ CH1 = [
     [8.5, 8.5]),
 ('table', None,
     ["Opportunities", "Threats"],
-    [["- the EU integration process, which raises the requirements for traceability [13];\n- the growing acceptance of digital channels in B2B trade [8];\n- partnerships with farmer associations and cooperatives;\n- future modules for payments, electronic invoices and route planning;\n- extension towards exports and regional markets.",
-      "- strong habit of solving everything by phone;\n- 999.md or Agromag.md may add similar B2B functions;\n- strong seasonal and weather-related fluctuations of supply [3];\n- risk of fraud or unfair reviews, which can damage trust;\n- unwillingness of some intermediaries to lose their role."]],
+    [["- the EU integration process, which raises the requirements for traceability [@seerural];\n- the growing acceptance of digital channels in B2B trade [@mckinsey];\n- partnerships with farmer associations and cooperatives;\n- future modules for payments, electronic invoices and route planning;\n- extension towards exports and regional markets.",
+      "- strong habit of solving everything by phone;\n- 999.md or Agromag.md may add similar B2B functions;\n- strong seasonal and weather-related fluctuations of supply [@nbs2024];\n- risk of fraud or unfair reviews, which can damage trust;\n- unwillingness of some intermediaries to lose their role."]],
     [8.5, 8.5]),
 ('p', "The analysis shows that the main risk of the project is not technical. The hardest part is the so-called "
       "\"cold start\": a marketplace is useful to buyers only if it already has sellers, and the other way around. "
@@ -237,7 +239,7 @@ CH1 = [
       "for keeping track of stock and orders, even before the network of buyers grows. This conclusion is taken "
       "into account when formulating the requirements in the following subchapters."),
 
-('h2', "1.4 Target users and needs analysis"),
+('h2', "1.4 Preliminary user research and needs analysis"),
 ('p', "The previous subchapters were based mostly on documents and on the analysis of other products. Before the "
       "requirements are fixed, these conclusions have to be checked against the experience of the people who would "
       "actually use the platform. For this purpose, preliminary feedback is collected from potential users through "
@@ -263,17 +265,41 @@ CH1 = [
           "H3 – the lack of trust is the main reason for not working with new partners;",
           "H4 – the respondents would publish offers or order online if the operation takes only a few minutes from a phone;",
           "H5 – buyers value up-to-date stock information at least as much as a lower price."]),
-('p', "The hypotheses that are not confirmed will lead to changes in the requirements formulated in subchapters 1.5 "
-      "and 1.6, and any new need mentioned by the respondents will be added to the list of problems from Table 1.2. "
+('p', "The hypotheses that are not confirmed will lead to changes in the requirements formulated in subchapter 1.6, "
+      "and any new need mentioned by the respondents will be added to the list of problems from Table 1.2. "
       "The same respondents are also planned to take part later in the testing of the prototype, so that the "
       "platform is evaluated by the people whose needs it is meant to solve."),
-('p', "Based on the domain analysis and on the working hypotheses above, the target users were described "
-      "with the help of personas. A persona is a fictional but realistic profile that brings together the typical "
-      "goals, habits and frustrations of a group of users [14]. Personas help to keep the design focused on concrete "
-      "people instead of an abstract \"user\". Two main personas were defined, one for each side of the "
-      "transaction. The administrator role is internal and is described later, in the technical specification. The first "
-      "persona, the producer, is shown in Table 1.7."),
-('table', "Table 1.7 – Persona 1: the seller (agricultural producer)",
+
+('h2', "1.5 Target audience and unique value proposition"),
+('p', "The previous subchapters described the field, its problems and the solutions already on the market. This "
+      "subchapter answers two practical questions: for whom exactly the platform is built, and why these people would "
+      "choose it instead of the phone, a classified ads website or another platform. The audience is first divided into "
+      "segments, then the problems from subchapter 1.2 are narrowed down to three key problems, and finally the unique "
+      "value proposition (UVP) of the platform is formulated together with its main competitive advantages."),
+('p', "Market segmentation means dividing a market into groups of customers with similar needs and behaviour, using "
+      "geographic, demographic, psychographic and behavioural criteria [@kotler]. In B2B trade the customer is a "
+      "company, but the decisions are still taken by concrete people, such as the owner of a farm or the person "
+      "responsible for procurement, so their age, habits and attitudes matter as well. Four segments were identified: "
+      "two primary ones, which generate the transactions, and two secondary ones, which support the functioning of "
+      "the platform. They are described in Table 1.7."),
+('table', "Table 1.7 – Target audience segments of the platform",
+    ["Segment", "Type", "Who they are", "Demographic characteristics", "Psychographic characteristics"],
+    [["S1. Agricultural producers (sellers)", "Primary", "Small and medium farms, peasant farms and agricultural enterprises that sell vegetables, fruit or grain wholesale", "Mostly 35–60 years old, rural areas, owners or family members who run the farm; lots from a few hundred kilograms to tens of tonnes", "Pragmatic, short of time in the harvest season, rely on personal relationships, cautious about fees and new tools, prefer the phone to the computer"],
+     ["S2. Wholesale buyers (distributors)", "Primary", "Distribution companies, small retail chains, HoReCa businesses and processors that buy regularly", "Mostly 25–45 years old, procurement managers or owners in Chișinău, Bălți and district centres; buy weekly or more often", "Oriented to efficiency, used to online services, value reliability and predictability more than the lowest price, need a documented history"],
+     ["S3. Platform administrators", "Secondary", "Platform staff who verify accounts and listings and handle disputes", "One to three people at launch, good digital skills", "Responsible for the trust in the platform, need fast moderation tools and clear rules"],
+     ["S4. Partners", "Secondary", "Farmer associations and cooperatives, transport companies, agricultural consultants", "Organisations that already have networks of producers or clients", "Interested in the digitalisation of their members, can bring the first users and future integrations"]],
+    [2.9, 2.2, 4.0, 3.9, 4.0]),
+('p', "The two primary segments are the ones the platform is designed around, since without them no order is ever "
+      "placed. They are also very different from each other: the producers are less digital and more sensitive to "
+      "costs, while the buyers are used to online tools but have little time for anything that does not bring "
+      "results quickly. The interface and the onboarding have to work for the first group without slowing down "
+      "the second."),
+('p', "To make the primary segments more concrete, each of them is represented by a persona. A persona is a "
+      "fictional but realistic profile that brings together the typical goals, habits and frustrations of a group of "
+      "users [@cooper]. Personas help to keep the design focused on concrete people instead of an abstract "
+      "\"user\". They were built from the field analysis and from the working hypotheses in subchapter 1.4, and will "
+      "be adjusted after the interviews. The first persona, Ion, represents segment S1 and is shown in Table 1.8."),
+('table', "Table 1.8 – Persona 1: the seller (agricultural producer)",
     ["Attribute", "Description"],
     [["Name, age", "Ion Rusu, 48 years old"],
      ["Occupation", "Owner of a 25 ha vegetable farm in Criuleni district (tomatoes, peppers, cabbage, onions)"],
@@ -285,9 +311,10 @@ CH1 = [
     [3.5, 13.5]),
 ('p', "Ion is not against technology, but he will not spend an evening learning a new system during the harvest. "
       "For him a platform is useful only if it saves time from the very first offer he publishes."),
-('p', "The second persona, presented in Table 1.8, describes the other side of the transaction: a buyer who "
-      "needs regular deliveries and spends a large part of the working day coordinating suppliers."),
-('table', "Table 1.8 – Persona 2: the distributor (wholesale buyer)",
+('p', "The second persona, presented in Table 1.9, represents segment S2 and describes the other side of the "
+      "transaction: a buyer who needs regular deliveries and spends a large part of the working day coordinating "
+      "suppliers."),
+('table', "Table 1.9 – Persona 2: the distributor (wholesale buyer)",
     ["Attribute", "Description"],
     [["Name, age", "Natalia Ceban, 35 years old"],
      ["Occupation", "Procurement manager at a regional distribution company that supplies about 40 shops and restaurants in Chișinău"],
@@ -303,28 +330,81 @@ CH1 = [
       "This last point is probably the most important design constraint: every frequent operation, such as "
       "publishing a listing or confirming an order, has to take only a few steps and has to work comfortably on "
       "a phone screen."),
-('p', "The results of this chapter so far, namely the description of the field, the list of problems, the niche "
-      "identified among existing solutions and the profiles of the target users, form the basis for the technical "
-      "specification and for the functional and non-functional requirements, which are formulated in the "
-      "next subchapters."),
+('p', "The secondary segments do not trade on the platform, but the platform cannot work without them. The "
+      "administrators are the ones who turn verification from a promise into a routine: they approve new accounts, "
+      "check listings and step in when an order turns into a dispute. The partners matter mostly at the start. A farmer "
+      "association or a cooperative can bring dozens of producers at once, which solves part of the \"cold start\" "
+      "problem described in subchapter 1.3, while transport companies and consultants are natural candidates for "
+      "future integrations."),
+('p', "The problems listed in Table 1.2 are numerous, but they do not have the same weight for the target audience. "
+      "When they are grouped by their effect on the two primary segments, three key problems remain, and these define "
+      "the core of the platform. They are presented in Table 1.10."),
+('table', "Table 1.10 – Key problems solved by the platform for the target audience",
+    ["Key problem", "Affected segments", "How it shows today", "How the platform solves it"],
+    [["KP1. Finding a reliable partner takes too long", "S1, S2", "Hours of calls and waiting for answers to ads; deals limited to a small circle of known partners", "Catalogue of listings with search by product and region, verified accounts and public reviews after completed orders"],
+     ["KP2. Stock and agreements are not recorded in one place", "S1, S2", "Lots promised twice, oral agreements, disputes about quantity and price", "Each listing shows the real stock, which decreases when an order is confirmed; each order keeps its price, quantity and status"],
+     ["KP3. Communication around an order is slow and scattered", "S1, S2, S3", "Details lost between calls, Viber and Facebook; perishable produce waits for an answer", "Messages attached to each order, e-mail and in-app notifications, a personal dashboard with all orders"]],
+    [3.8, 2.0, 5.2, 6.0]),
+('p', "The three key problems are connected to each other. Without trust (KP1) a buyer does not risk ordering from an "
+      "unknown producer; without a shared record (KP2) even a trusted partner can disappoint; and without fast "
+      "communication (KP3) perishable goods lose value while the two parties wait for each other. Most of the "
+      "alternatives from subchapter 1.3 solve one or two of these problems, which is why users keep returning to the "
+      "phone for the rest of the deal."),
+('p', "A value proposition describes how a product relieves the pains of its customers and creates the gains they "
+      "expect [@osterwalder]. A unique value proposition goes one step further and states, in one or two sentences, "
+      "why the product is a better choice than the alternatives the customer already has. For the proposed platform "
+      "these alternatives are the phone and the messengers, the classified ads on 999.md and the specialised "
+      "platforms analysed in subchapter 1.3. Taking them into account, the UVP of the platform is formulated as "
+      "follows:"),
+('quote', "\u201cA free, Romanian-language B2B marketplace where Moldovan farmers and wholesale buyers trade agricultural "
+          "produce directly: every listing shows the stock that is really available, every deal becomes an order with "
+          "a clear status and its own conversation, and every participant is verified, so a harvest can be sold with a "
+          "few taps on a phone instead of a day of phone calls.\u201d"),
+('p', "Each part of the statement answers one of the key problems. Verified participants and public reviews answer "
+      "KP1, the real stock and the order with a status answer KP2, and the conversation attached to each order, "
+      "together with notifications, answers KP3. The words \"free\" and \"Romanian-language\" are addressed mainly "
+      "to segment S1, for whom cost and language are the first barriers. For the landing page and for promotion, "
+      "the UVP was also reduced to two short messages, one for each primary segment: \"Sell your harvest, not your "
+      "time on the phone\" for producers and \"Order from verified farmers, with real stock and no calls\" for buyers."),
+('p', "Formulating a UVP is useful only if it holds up against the alternatives. Table 1.11 compares the main "
+      "advantages of the platform with the three groups of alternatives that the target audience uses today."),
+('table', "Table 1.11 – Main competitive advantages of the platform compared to the alternatives",
+    ["Advantage", "Compared to the phone and messengers", "Compared to 999.md", "Compared to specialised platforms"],
+    [["Built for wholesale trade in farm produce", "Reach beyond personal contacts", "Each listing has quantity, price per kilogram, region, harvest date and delivery terms instead of free text", "Local scale and lots of a few tonnes, not export containers or farm inputs"],
+     ["Real stock linked to orders", "Nothing has to be remembered, the stock updates itself", "An ad does not show what is left", "Found elsewhere mostly in paid enterprise software"],
+     ["Order with a status and its own conversation", "Agreements are written, not oral", "The deal continues on the platform, not by phone", "Similar functions, but free and in Romanian"],
+     ["Verification and reviews", "Trust beyond the circle of acquaintances", "Accounts and listings are checked, including an automatic check of every new listing", "Similar level of trust, adapted to small producers"],
+     ["No fees, works in the browser of any phone", "No extra costs, nothing to install", "The same accessibility, with more structure", "Not available in Moldova or paid"]],
+    [3.6, 4.1, 4.7, 4.6]),
+('p', "None of these advantages is impossible to copy on its own. What makes the platform different is their "
+      "combination and its focus on one specific job: wholesale trade in fresh produce between Moldovan farmers and "
+      "the companies that buy from them. 999.md is too general to do this job well, Agromag.md sells in the opposite "
+      "direction, and the international platforms are built for other markets and much larger companies. This focus "
+      "is the main competitive advantage, and it also sets the priority for the launch: the UVP addresses producers "
+      "first, because they bring the supply, while buyers are attracted by the number of real offers."),
+('p', "With the target audience, the key problems and the value proposition defined, the next step is to translate "
+      "them into the technical specification and the requirements of the system, which are presented in "
+      "subchapter 1.6."),
 ]
 
-REFERENCES = [
- 'International Trade Administration, "Moldova – Agriculture," Country Commercial Guide. [Online]. Available: https://www.trade.gov/country-commercial-guides/moldova-agriculture (accessed Oct. 2, 2026).',
- 'bne IntelliNews, "Moldova\'s GDP close to a standstill in 2024 due to weak agriculture," 2025. [Online]. Available: https://www.intellinews.com/moldova-s-gdp-close-to-a-standstill-in-2024-due-to-weak-agriculture-372139/ (accessed Oct. 2, 2026).',
- 'National Bureau of Statistics of the Republic of Moldova, "Gross agricultural production in 2024," 2025. [Online]. Available: https://statistica.gov.md/en/gross-agricultural-production-in-2024-9515_61675.html (accessed Oct. 2, 2026).',
- 'National Bureau of Statistics of the Republic of Moldova, 2011 General Agricultural Census in the Republic of Moldova: Main results. Chișinău, Moldova. [Online]. Available: https://statistica.gov.md/public/files/publicatii_electronice/Recensamint_agricol/RGA_principalele_rezultate_eng.pdf (accessed Oct. 2, 2026).',
- 'FAO, Smallholders and family farms in the Republic of Moldova. Country study report 2019. Budapest, Hungary: FAO, 2020, doi: 10.4060/ca9836en.',
- 'Simpals, "999.md – classified ads in Moldova." [Online]. Available: https://999.md (accessed Oct. 2, 2026).',
- 'FAO, "SDG Indicator 12.3.1 – Global food losses," FAO SDG Data Portal. [Online]. Available: https://www.fao.org/sustainable-development-goals-data-portal/data/indicators/1231-global-food-losses/en (accessed Oct. 2, 2026).',
- 'McKinsey & Company, "Five fundamental truths: How B2B winners keep growing," 2024. [Online]. Available: https://www.mckinsey.com/capabilities/growth-marketing-and-sales/our-insights/five-fundamental-truths-how-b2b-winners-keep-growing (accessed Oct. 2, 2026).',
- 'TechCrunch, "SoftBank-backed Tridge, a Korean platform that matches food agriculture buyers and sellers, bags $37.2M Series D at a $2.7B valuation," Aug. 24, 2022. [Online]. Available: https://techcrunch.com/2022/08/24/tridge-a-korean-platform-that-matches-food-agriculture-buyers-and-sellers-bags-37-2m-series-d-at-a-2-7b-valuation (accessed Oct. 2, 2026).',
- 'Choco, "Choco – the ordering platform for restaurants and food suppliers." [Online]. Available: https://choco.com (accessed Oct. 2, 2026).',
- 'Sacra, "GrubMarket revenue, valuation & funding." [Online]. Available: https://sacra.com/c/grubmarket/ (accessed Oct. 2, 2026).',
- 'Agrobiznes, "Agromag la 2 ani de activitate: Peste 100 de companii agroindustriale prezente pe platformă." [Online]. Available: https://agrobiznes.md/agromag-la-2-ani-de-activitate-peste-100-de-companii-agroindustriale-prezente-pe-platforma.html (accessed Oct. 2, 2026).',
- 'SEERural, "State of Art of Agriculture in Moldova in the process of EU integration," 2025. [Online]. Available: https://seerural.org/wp-content/uploads/2025/01/State-of-Art-of-Agriculture-in-Moldova-in-the-process-of-EU-integration.pdf (accessed Oct. 2, 2026).',
- 'A. Cooper, The Inmates Are Running the Asylum. Indianapolis, IN, USA: Sams Publishing, 1999.',
-]
+REFS = {
+ 'trade': 'International Trade Administration, "Moldova – Agriculture," Country Commercial Guide. [Online]. Available: https://www.trade.gov/country-commercial-guides/moldova-agriculture (accessed Oct. 2, 2026).',
+ 'bne': 'bne IntelliNews, "Moldova\'s GDP close to a standstill in 2024 due to weak agriculture," 2025. [Online]. Available: https://www.intellinews.com/moldova-s-gdp-close-to-a-standstill-in-2024-due-to-weak-agriculture-372139/ (accessed Oct. 2, 2026).',
+ 'nbs2024': 'National Bureau of Statistics of the Republic of Moldova, "Gross agricultural production in 2024," 2025. [Online]. Available: https://statistica.gov.md/en/gross-agricultural-production-in-2024-9515_61675.html (accessed Oct. 2, 2026).',
+ 'census': 'National Bureau of Statistics of the Republic of Moldova, 2011 General Agricultural Census in the Republic of Moldova: Main results. Chișinău, Moldova. [Online]. Available: https://statistica.gov.md/public/files/publicatii_electronice/Recensamint_agricol/RGA_principalele_rezultate_eng.pdf (accessed Oct. 2, 2026).',
+ 'fao_small': 'FAO, Smallholders and family farms in the Republic of Moldova. Country study report 2019. Budapest, Hungary: FAO, 2020, doi: 10.4060/ca9836en.',
+ 'simpals': 'Simpals, "999.md – classified ads in Moldova." [Online]. Available: https://999.md (accessed Oct. 2, 2026).',
+ 'fao_loss': 'FAO, "SDG Indicator 12.3.1 – Global food losses," FAO SDG Data Portal. [Online]. Available: https://www.fao.org/sustainable-development-goals-data-portal/data/indicators/1231-global-food-losses/en (accessed Oct. 2, 2026).',
+ 'mckinsey': 'McKinsey & Company, "Five fundamental truths: How B2B winners keep growing," 2024. [Online]. Available: https://www.mckinsey.com/capabilities/growth-marketing-and-sales/our-insights/five-fundamental-truths-how-b2b-winners-keep-growing (accessed Oct. 2, 2026).',
+ 'tridge': 'TechCrunch, "SoftBank-backed Tridge, a Korean platform that matches food agriculture buyers and sellers, bags $37.2M Series D at a $2.7B valuation," Aug. 24, 2022. [Online]. Available: https://techcrunch.com/2022/08/24/tridge-a-korean-platform-that-matches-food-agriculture-buyers-and-sellers-bags-37-2m-series-d-at-a-2-7b-valuation (accessed Oct. 2, 2026).',
+ 'choco': 'Choco, "Choco – the ordering platform for restaurants and food suppliers." [Online]. Available: https://choco.com (accessed Oct. 2, 2026).',
+ 'grubmarket': 'Sacra, "GrubMarket revenue, valuation & funding." [Online]. Available: https://sacra.com/c/grubmarket/ (accessed Oct. 2, 2026).',
+ 'agromag': 'Agrobiznes, "Agromag la 2 ani de activitate: Peste 100 de companii agroindustriale prezente pe platformă." [Online]. Available: https://agrobiznes.md/agromag-la-2-ani-de-activitate-peste-100-de-companii-agroindustriale-prezente-pe-platforma.html (accessed Oct. 2, 2026).',
+ 'seerural': 'SEERural, "State of Art of Agriculture in Moldova in the process of EU integration," 2025. [Online]. Available: https://seerural.org/wp-content/uploads/2025/01/State-of-Art-of-Agriculture-in-Moldova-in-the-process-of-EU-integration.pdf (accessed Oct. 2, 2026).',
+ 'cooper': 'A. Cooper, The Inmates Are Running the Asylum. Indianapolis, IN, USA: Sams Publishing, 1999.',
+ 'kotler': 'P. Kotler and K. L. Keller, Marketing Management, 15th ed. Harlow, England: Pearson Education, 2016.',
+ 'osterwalder': 'A. Osterwalder, Y. Pigneur, G. Bernarda, and A. Smith, Value Proposition Design: How to Create Products and Services Customers Want. Hoboken, NJ, USA: Wiley, 2014.',
+}
 
 PROPOSAL = [
  ("Topic:", ["B2B web platform for wholesale order management and optimisation of agricultural product distribution flows."]),

@@ -11,6 +11,34 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import content as C
 
+# citations are written as [@key] in content.py and numbered here in order of first appearance
+def _number_citations():
+    order = []
+    def walk(x):
+        if isinstance(x, str):
+            for k in re.findall(r'\[@(\w+)\]', x):
+                if k not in order:
+                    order.append(k)
+        elif isinstance(x, (list, tuple)):
+            for y in x:
+                walk(y)
+    walk(C.CH1)
+    num = {k: i + 1 for i, k in enumerate(order)}
+    def sub(x):
+        if isinstance(x, str):
+            return re.sub(r'\[@(\w+)\]', lambda m: '[%d]' % num[m.group(1)], x)
+        if isinstance(x, tuple):
+            return tuple(sub(y) for y in x)
+        if isinstance(x, list):
+            return [sub(y) for y in x]
+        return x
+    C.CH1 = sub(C.CH1)
+    C.REFERENCES = [C.REFS[k] for k in order]
+    unused = [k for k in C.REFS if k not in order]
+    if unused:
+        print('warning: references never cited:', unused)
+_number_citations()
+
 TEMPLATE = os.path.join(HERE, 'template.docx')
 OUT = sys.argv[1]
 PAGES = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else {}
@@ -220,7 +248,7 @@ def table(caption, header, rows, widths, highlight=False, before=None):
     for i, row in enumerate(rows):
         no_split(t.rows[i + 1])
         for j, v in enumerate(row):
-            center = len(header) > 4 and j > 0
+            center = len(header) > 4 and j > 0 and len(v) <= 12
             cell_text(t.rows[i + 1].cells[j], v, highlight=highlight, center=center)
     set_grid(t, widths)
     # keep caption with table: keep_with_next on all paragraphs of first row
@@ -244,6 +272,26 @@ def figure(path, caption, width_cm, before=None):
     c.paragraph_format.space_after = Pt(6)
     r = c.add_run(caption); tnr(r, 12, True)
 
+def quote_par(text):
+    # highlighted statement (e.g. the UVP): indented, italic, framed by a thin border
+    prev = d.paragraphs[-1]
+    prev.paragraph_format.keep_with_next = True   # the sentence introducing the statement stays with it
+    p = new_par('Body Text 2026')
+    pf = p.paragraph_format
+    pf.first_line_indent = Cm(0); pf.left_indent = Cm(1.25); pf.right_indent = Cm(1.25)
+    pf.space_before = Pt(6); pf.space_after = Pt(6)
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    pPr = p._p.get_or_add_pPr()
+    bdr = OxmlElement('w:pBdr')
+    for side in ('top', 'left', 'bottom', 'right'):
+        e = OxmlElement('w:' + side)
+        e.set(qn('w:val'), 'single'); e.set(qn('w:sz'), '6'); e.set(qn('w:space'), '6'); e.set(qn('w:color'), '000000')
+        bdr.append(e)
+    pPr.append(bdr)
+    pf.keep_together = True
+    r = p.add_run(text); tnr(r, 12); r.font.italic = True
+    return p
+
 def render(blocks):
     for b in blocks:
         kind = b[0]
@@ -253,6 +301,7 @@ def render(blocks):
         elif kind == 'pc': body_par(b[1], indent=False)
         elif kind == 'ph': body_par(b[1], highlight=True)
         elif kind == 'list': dash_list(b[1])
+        elif kind == 'quote': quote_par(b[1])
         elif kind == 'fig': figure(b[1], b[2], b[3])
         elif kind == 'table':
             table(b[1], b[2], b[3], b[4], highlight=(len(b) > 5 and b[5] == 'highlight'))
