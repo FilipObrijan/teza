@@ -418,6 +418,7 @@ REFS = {
  'law195': 'Law No. 195 of 25.07.2024 on personal data protection. Official Monitor of the Republic of Moldova, 23.08.2024 (in force since 23.08.2026).',
  'cohn': 'M. Cohn, User Stories Applied: For Agile Software Development. Boston, MA, USA: Addison-Wesley, 2004.',
  'owasp': 'OWASP Foundation, "OWASP Top 10:2021 – The ten most critical web application security risks." [Online]. Available: https://owasp.org/Top10/ (accessed Oct. 12, 2026).',
+ 'iso25010': 'ISO/IEC 25010:2023, Systems and software engineering – Systems and software Quality Requirements and Evaluation (SQuaRE) – Product quality model. Geneva, Switzerland: ISO, 2023.',
 }
 
 PROPOSAL = [

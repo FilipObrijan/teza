@@ -29,3 +29,9 @@ Documentul SRS separat (`../SRS_AgroHub_Obrijan_Filip_FAF232.docx`) se genereaz�
 ```bash
 MODE=srs python3 build.py /tmp/pass1.docx   # apoi pages.py și din nou build.py, ca la raport
 ```
+
+Toate documentele (raportul, SRS-ul cu cerințele funcționale și secțiunea cu cerințele nefuncționale) se generează și se verifică dintr-o singură comandă:
+
+```bash
+./make_all.sh /tmp/thesis-build
+```

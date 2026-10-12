@@ -11,9 +11,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import content as C
 MODE = os.environ.get('MODE', 'report')
-if MODE == 'srs':
+if MODE in ('srs', 'nfr'):
     import srs_standalone
-    C.CH1 = srs_standalone.build_blocks()
+    C.CH1 = srs_standalone.build_blocks() if MODE == 'srs' else srs_standalone.build_nfr_blocks()
 
 # citations are written as [@key] in content.py and numbered here in order of first appearance
 def _number_citations():
@@ -70,7 +70,7 @@ def para_of(el):
     return docx.text.paragraph.Paragraph(el, d._body)
 
 # ---------- cover ----------
-if MODE == 'srs':
+if MODE in ('srs', 'nfr'):
     set_text(para_of(els[6]), srs_standalone.TITLE)
     set_text(para_of(els[10]), C.TITLE)
 else:
@@ -100,7 +100,7 @@ def placeholder_runs(p, text):
     return r
 placeholder_runs(para_of(els[32]), "[The abstract (300–500 words) will be written after Chapters 1–3 are completed.]")
 placeholder_runs(para_of(els[33]), "Keywords: [5–7 keywords]")
-if MODE == 'srs':
+if MODE in ('srs', 'nfr'):
     for el in els[29:34]:
         body.remove(el)
 
@@ -327,7 +327,7 @@ def render(blocks):
         elif kind == 'table':
             table(b[1], b[2], b[3], b[4], highlight=(len(b) > 5 and b[5] == 'highlight'))
 
-if MODE == 'srs':
+if MODE in ('srs', 'nfr'):
     _all = str(C.CH1)
     C.ABBREVIATIONS = [x for x in C.ABBREVIATIONS if re.search(r'(?<![A-Za-z])' + re.escape(x[0]) + r'(?![A-Za-z])', _all)]
 # ---------- list of abbreviations (inside the abstract section, before Introduction) ----------
@@ -345,7 +345,7 @@ for i, (a, desc) in enumerate(C.ABBREVIATIONS):
             for r in p.runs: r.font.size = Pt(12)
 set_grid(t, [3, 14])
 
-if MODE == 'srs':
+if MODE in ('srs', 'nfr'):
     # ---------- main body ----------
     render(C.CH1)
     h1("REFERENCES")
@@ -483,11 +483,11 @@ def mk_run(text=None, fld=None, instr=None, tab=False):
 
 entries = [(1, "ABSTRACT", None), (1, "LIST OF ABBREVIATIONS", None)] + TOC_ENTRIES
 # abstract heading bookmark
-if MODE != 'srs':
+if MODE not in ('srs', 'nfr'):
     abs_p = para_of(els[29])
     add_bookmark(abs_p, '_Toc900001')
 # abbreviations heading bookmark is TOC_ENTRIES[0]
-entries = TOC_ENTRIES if MODE == 'srs' else [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
+entries = TOC_ENTRIES if MODE in ('srs', 'nfr') else [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
 for k, (lvl, text, bm) in enumerate(entries):
     p = OxmlElement('w:p')
     ppr = OxmlElement('w:pPr'); st = OxmlElement('w:pStyle'); st.set(qn('w:val'), 'TOC%d' % min(lvl, 2)); ppr.append(st)
@@ -505,6 +505,20 @@ for k, (lvl, text, bm) in enumerate(entries):
     p.append(hl)
     end_p.addprevious(p)
 
+if MODE == 'nfr':
+    # a section to be appended to the SRS: no cover, table of contents or list of abbreviations
+    first_heading = C.CH1[0][1]
+    for el in list(body.iterchildren()):
+        if el.tag == qn('w:p') and ''.join(t.text or '' for t in el.iter(qn('w:t'))).strip() == first_heading:
+            docx.text.paragraph.Paragraph(el, d._body).paragraph_format.page_break_before = False
+            break
+        if el.tag != qn('w:sectPr'):
+            body.remove(el)
+    # the references continue on the same page in an appended section
+    for p in d.paragraphs:
+        if p.text.strip() == 'REFERENCES':
+            p.paragraph_format.page_break_before = False
+            p.paragraph_format.space_before = Pt(18)
 d.save(OUT)
 json.dump([e[1] for e in entries], open(OUT + '.headings.json', 'w'))
 print('saved', OUT)

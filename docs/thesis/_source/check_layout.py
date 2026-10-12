@@ -20,7 +20,8 @@ def nonempty(i, step):
         j += step
     return j
 problems, checked = [], 0
-started = False
+# start after the Introduction heading; a document without one (e.g. an appended section) is checked entirely
+started = not any(el.tag == qn('w:p') and text(el).strip().endswith('INTRODUCTION') for el in body)
 for i, el in enumerate(body):
     if el.tag == qn('w:p') and text(el).strip().endswith('INTRODUCTION'):
         started = True

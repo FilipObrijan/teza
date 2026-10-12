@@ -2,6 +2,18 @@
 import os
 _D = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'diagrams')
 
+
+SRS_TAIL = [
+('p', "Taken together with the functional requirements, these criteria define when the system is acceptable:"),
+('list', ["all mandatory functional requirements are implemented and each is covered by at least one test case;",
+          "the automated test cases TC01–TC19 pass on every change of the code;",
+          "the key user flows F1–F4 can be completed in the public version of the platform;",
+          "the acceptance criteria of NFR-01 to NFR-11 are verified and their results reported in Chapter 3."]),
+('p', "With these criteria the specification is complete. It translates the findings of the field analysis into 22 "
+      "functional and 11 non-functional requirements, all traceable to use cases and tests, and it is the starting "
+      "point for the UML modelling of the system in Chapter 2."),
+]
+
 SRS = [
 ('h2', "1.6 Software requirements specification"),
 ('p', "The previous subchapters explain why the platform is needed and for whom it is built. This subchapter states "
@@ -217,41 +229,62 @@ SRS = [
       "what must not change."),
 
 ('h3', "1.6.5 Non-functional requirements and acceptance criteria"),
-('p', "The non-functional requirements describe how well the system must perform its functions. They were "
-      "formulated in a measurable way, so that each of them can be checked, and are grouped into two tables. "
-      "Table 1.19 covers performance, reliability, usability, portability and maintainability."),
-('table', "Table 1.19 – Non-functional requirements: quality of the system",
-    ["ID", "Category", "Requirement"],
-    [["NFR-01", "Performance", "The catalogue and the usual operations respond in at most 2 seconds with up to 1,000 active listings"],
-     ["NFR-02", "Data integrity", "Simultaneous operations on the same listing never lead to selling more than the available stock"],
-     ["NFR-03", "Availability", "The API exposes a health endpoint that is checked every 5 minutes by an external monitor, which also keeps the free server awake"],
-     ["NFR-04", "Reliability", "The database schema is updated automatically and repeatably at every start of the server; a failed update stops the start"],
-     ["NFR-05", "Usability", "The interface is in Romanian and adapts to screens from 360 pixels wide; irreversible actions require a confirmation"],
-     ["NFR-06", "Portability", "The client works in the last two versions of Chrome, Firefox, Safari and Edge, with nothing to install"],
-     ["NFR-07", "Maintainability", "Client and server are written in TypeScript; the automated API tests run on every change pushed to the repository"],
-     ["NFR-08", "Storage", "Listing photos up to 10 MB are converted to WebP and stored in the database, so they survive restarts of the server"]],
-    [1.8, 3.0, 13.2]),
-('p', "Several of these values are imposed by the free hosting plan. Requirement NFR-03, for example, exists because a "
-      "free server is put to sleep after a period of inactivity, and the first request after that would otherwise "
-      "take too long."),
-('p', "The second group, in Table 1.20, deals with security and the protection of personal data. It is based on the "
-      "most common risks of web applications described by OWASP [@owasp] and on the national legislation."),
-('table', "Table 1.20 – Non-functional requirements: security and data protection",
-    ["ID", "Category", "Requirement"],
-    [["NFR-09", "Authentication", "Passwords have at least 8 characters and are stored only as bcrypt hashes; a session token is valid for 7 days"],
-     ["NFR-10", "Verification codes", "E-mail and password reset codes are stored as SHA-256 hashes, expire after 15 minutes and allow at most 5 attempts"],
-     ["NFR-11", "Abuse protection", "At most 20 sign-in attempts and 5 e-mail sending requests are accepted from one address in 15 minutes"],
-     ["NFR-12", "Access control", "Every protected request is checked on the server against the role and status of the user; a blocked account loses access immediately"],
-     ["NFR-13", "Input validation", "All input data are validated on the server, SQL queries are parameterised, and security HTTP headers are set"],
-     ["NFR-14", "Transport", "All communication between the browser, the server and the external services uses HTTPS"],
-     ["NFR-15", "Personal data", "Only the data needed for trading are collected (name, e-mail, phone, region), in line with Law No. 195/2024 [@law195]"]],
-    [1.8, 3.0, 13.2]),
-('p', "The system is considered acceptable when all of the following criteria are met:"),
-('list', ["all mandatory functional requirements are implemented and each is covered by at least one test case;",
-          "the automated test cases TC01–TC19 pass on every change of the code;",
-          "the key user flows F1–F4 can be completed in the public version of the platform;",
-          "the measurable non-functional requirements are verified and their results reported in Chapter 3."]),
-('p', "With these criteria the specification is complete. It translates the findings of the field analysis into 22 "
-      "functional and 15 non-functional requirements, all traceable to use cases and tests, and it is the starting "
-      "point for the UML modelling of the system in Chapter 2."),
-]
+] + [
+('p', "The non-functional requirements describe the quality of the system rather than its functions. They were "
+      "classified according to the product quality model of ISO/IEC 25010:2023, which describes software quality "
+      "through nine characteristics, each divided into subcharacteristics: functional suitability, performance "
+      "efficiency, compatibility, interaction capability, reliability, security, maintainability, flexibility and "
+      "safety [@iso25010]. Compared to the 2011 edition, usability was renamed interaction capability, portability "
+      "was renamed flexibility, and safety was added."),
+('p', "For every requirement a measurable acceptance criterion was defined, together with the way it is checked: "
+      "a load test, the automated API tests, monitoring of the public version or a short test with users. "
+      "Table NFR_A contains the requirements for performance efficiency and reliability."),
+('table', "Table NFR_A – Non-functional requirements: performance efficiency and reliability",
+    ["ID", "Requirement", "ISO/IEC 25010 characteristic (subcharacteristic)", "Measurable acceptance criterion"],
+    [["NFR-01", "The catalogue and the order operations respond quickly", "Performance efficiency (time behaviour)", "95% of the requests for the catalogue, placing an order and changing its status are answered in under 2 seconds, measured on 200 requests with 1,000 active listings"],
+     ["NFR-02", "The system serves many users at the same time", "Performance efficiency (capacity)", "With 50 simultaneous virtual users for 5 minutes, fewer than 1% of the requests fail and 95% are answered in under 3 seconds"],
+     ["NFR-03", "The public version of the platform is available", "Reliability (availability)", "Monthly availability of at least 99%, measured by an external monitor that calls the health endpoint every 5 minutes"],
+     ["NFR-04", "The stock never becomes inconsistent", "Reliability (faultlessness)", "In 100% of the runs of the test with two simultaneous acceptances, exactly one succeeds and the stock decreases once; the stock can never be negative"],
+     ["NFR-05", "An outage of the AI service does not block the publication of listings", "Reliability (fault tolerance, recoverability)", "If the AI service does not answer within 45 seconds, the listing goes to manual moderation and is rechecked automatically every 15 minutes, up to 12 times; no listing is lost"]],
+    [1.9, 4.2, 3.8, 8.1]),
+('p', "The values in Table NFR_A were chosen for the expected scale of the first year: a few hundred producers and "
+      "buyers, most of them active in the harvest season. Requirement NFR-03 also takes into account that the server "
+      "runs on a free hosting plan, which is put to sleep when nobody uses it; the external monitor keeps it awake."),
+('p', "Table NFR_B covers security, interaction capability, flexibility and maintainability. The security "
+      "requirements follow the most common risks of web applications described by OWASP [@owasp] and the "
+      "national legislation on personal data [@law195]."),
+('table', "Table NFR_B – Non-functional requirements: security, interaction capability, flexibility and maintainability",
+    ["ID", "Requirement", "ISO/IEC 25010 characteristic (subcharacteristic)", "Measurable acceptance criterion"],
+    [["NFR-06", "Passwords and codes cannot be read or guessed", "Security (authenticity, confidentiality)", "The database contains 0 passwords or codes in clear text (bcrypt and SHA-256 only); codes expire after 15 minutes, the 6th wrong attempt is refused; all traffic uses HTTPS"],
+     ["NFR-07", "The system resists repeated attempts and abuse", "Security (resistance)", "The 21st sign-in attempt and the 6th e-mail request from the same address within 15 minutes receive HTTP 429"],
+     ["NFR-08", "Each user reaches only the data and actions of their role", "Security (confidentiality, integrity)", "100% of the protected requests return 401 without a token and 403 for a wrong role or a blocked account; only name, e-mail, phone and region are stored as personal data"],
+     ["NFR-09", "Frequent operations are fast to perform", "Interaction capability (operability, learnability)", "In a test with 3 new users, each publishes a first listing in at most 3 minutes and places an order in at most 5 actions from the catalogue, without help"],
+     ["NFR-10", "The platform works on the devices of the target users", "Flexibility (adaptability)", "The flows F1–F3 run without errors in the last two versions of Chrome, Firefox, Safari and Edge and on screens from 360 pixels wide, without horizontal scrolling"],
+     ["NFR-11", "Changes can be verified quickly", "Maintainability (testability)", "Every mandatory functional requirement is covered by at least one automated test; the 19 API tests run on every push and finish in under 5 minutes"]],
+    [1.9, 4.2, 3.8, 8.1]),
+('p', "Six of the nine characteristics of ISO/IEC 25010 are therefore covered by at least one requirement. Functional "
+      "suitability is covered by the functional requirements and the user stories, while compatibility and safety are "
+      "not critical for a web platform that does not exchange data with other business systems and cannot cause "
+      "physical harm."),
+] + SRS_TAIL
+
+
+
+def _renumber(blocks, mapping):
+    def sub(x):
+        if isinstance(x, str):
+            for a, c in mapping.items():
+                x = x.replace(a, c)
+            return x
+        if isinstance(x, tuple):
+            return tuple(sub(y) for y in x)
+        if isinstance(x, list):
+            return [sub(y) for y in x]
+        return x
+    return [sub(b) for b in blocks]
+
+
+# the non-functional requirements, without numbers, also used for the separate NFR section
+_i = next(k for k, b in enumerate(SRS) if b[0] == 'h3' and b[1].startswith('1.6.5'))
+NFR_RAW = SRS[_i + 1:len(SRS) - len(SRS_TAIL)]
+SRS = _renumber(SRS, {'Table NFR_A': 'Table 1.19', 'Table NFR_B': 'Table 1.20'})

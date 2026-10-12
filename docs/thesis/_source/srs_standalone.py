@@ -30,8 +30,9 @@ INTRO_FIRST = ("This document specifies the software requirements of AgroHub, a 
 
 STRUCTURE = ("The document is organised as follows. Chapter 2 presents the informal requirements, their clarification, the "
              "goals, the constraints and the key user flows. Chapter 3 gives the general description of the system together "
-             "with its actors and roles. Chapter 4 lists the functional requirements, Chapter 5 the use cases and user "
-             "stories, and Chapter 6 the non-functional requirements and the acceptance criteria.")
+             "with its actors and roles. Chapter 4 lists the functional requirements, and Chapter 5 the use cases and the "
+             "user stories. The non-functional requirements are specified in Chapter 6, delivered as a separate section "
+             "that is appended to this document.")
 
 
 def build_blocks():
@@ -47,6 +48,8 @@ def build_blocks():
     out.append(('p', STRUCTURE))
     chapter = 1
     for b in src[i:]:
+        if b[0] == 'h3' and b[1].startswith('1.6.5'):
+            break  # the non-functional requirements form a separate section (build_nfr_blocks)
         if b[0] == 'h3':
             chapter += 1
             out.append(('h1', "%d %s" % (chapter, re.sub(r'^1\.6\.\d+\s+', '', b[1]).upper())))
@@ -80,4 +83,16 @@ def build_blocks():
     leftovers = [m for b in blocks for m in re.findall(r'(?:subchapters?|paragraph) 1\.\d|Table 1\.\d+|Figure 1\.\d+|Chapter [23]\b', str(b))]
     if leftovers:
         print('warning: unresolved references:', sorted(set(leftovers)))
+    return blocks
+
+
+NFR_INTRO = ("This section completes the software requirements specification of the AgroHub platform with its "
+             "non-functional requirements. Chapters 1–5 of the specification describe what the system does; this chapter "
+             "describes how well it must do it and how each quality is verified.")
+
+
+def build_nfr_blocks():
+    blocks = [('h1', "6 NON-FUNCTIONAL REQUIREMENTS"), ('p', NFR_INTRO)]
+    blocks += srs_block._renumber(srs_block.NFR_RAW, {'Table NFR_A': 'Table 6.1', 'Table NFR_B': 'Table 6.2'})
+    blocks = srs_block._renumber(blocks, {"The flows F1–F3": "The key user flows F1–F3 (Chapter 2)"})
     return blocks
