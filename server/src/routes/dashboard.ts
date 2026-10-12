@@ -35,7 +35,7 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
         ),
         pool.query(
           `
-            SELECT id, product_name, variety, quantity_kg, price_per_kg, unit_measure, region, harvest_date, delivery_terms, status, updated_at
+            SELECT id, product_name, variety, quantity_kg, price_per_kg, region, harvest_date, delivery_terms, status, updated_at
             FROM product_listings
             WHERE seller_id = $1 AND status <> 'archived'
             ORDER BY created_at DESC
@@ -74,7 +74,6 @@ router.get('/me', requireAuth, requireRole(['seller', 'distributor']), async (re
           variety: listing.variety,
           quantityKg: Number(listing.quantity_kg),
           pricePerKg: Number(listing.price_per_kg),
-          unitMeasure: listing.unit_measure,
           region: listing.region,
           harvestDate: listing.harvest_date,
           deliveryTerms: listing.delivery_terms,

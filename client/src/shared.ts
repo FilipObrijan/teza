@@ -17,8 +17,8 @@ export const orderStatusLabel =(status: string) => ({
   confirmed: 'Acceptat',
   rejected: 'Refuzat',
   cancelled: 'Comandă anulată',
-  completed: 'Finalizată',
+  completed: 'Livrată',
 }[status] ?? status);
 
 export const orderStatusClass = (status: string) =>
-  `status-${status === 'confirmed' ? 'active' : status === 'rejected' || status === 'cancelled' ? 'rejected' : 'pending'}`;
+  `status-${status === 'confirmed' || status === 'completed' ? 'active' : status === 'rejected' || status === 'cancelled' ? 'rejected' : 'pending'}`;

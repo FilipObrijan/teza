@@ -26,7 +26,7 @@ const storeUploadedImage = async (file: Express.Multer.File) => {
 };
 
 const listingColumns = `
-  pl.id, pl.seller_id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg, pl.unit_measure,
+  pl.id, pl.seller_id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg,
   pl.region, pl.harvest_date, pl.delivery_terms, pl.image_url, pl.status, pl.created_at, pl.updated_at
 `;
 
@@ -37,7 +37,6 @@ const listingSchema = z.object({
   variety: z.string().trim().min(2).max(150),
   quantityKg: z.coerce.number().positive(),
   pricePerKg: z.coerce.number().nonnegative(),
-  unitMeasure: z.string().trim().min(1).max(20).default('kg'),
   region: z.string().trim().min(2).max(100),
   // Formularul trimite câmpurile opționale goale ca text gol; le tratăm ca lipsă.
   harvestDate: z.preprocess((value) => (value === '' ? null : value), z.string().date().optional().nullable()),
@@ -63,7 +62,6 @@ const mapListing = (listing: Record<string, unknown>) => ({
   variety: listing.variety,
   quantityKg: listing.quantity_kg,
   pricePerKg: listing.price_per_kg,
-  unitMeasure: listing.unit_measure,
   region: listing.region,
   harvestDate: listing.harvest_date,
   deliveryTerms: listing.delivery_terms,
@@ -155,8 +153,8 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
     const result = await pool.query(
       `
         INSERT INTO product_listings
-          (seller_id, product_name, variety, quantity_kg, price_per_kg, unit_measure, region, harvest_date, delivery_terms, image_url, image_data, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
+          (seller_id, product_name, variety, quantity_kg, price_per_kg, region, harvest_date, delivery_terms, image_url, image_data, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
         RETURNING ${listingColumns.replaceAll('pl.', '')}
       `,
       [
@@ -165,7 +163,6 @@ router.post('/', requireAuth, requireRole(['seller']), upload.single('image'), a
         input.data.variety,
         input.data.quantityKg,
         input.data.pricePerKg,
-        input.data.unitMeasure,
         input.data.region,
         input.data.harvestDate ?? null,
         input.data.deliveryTerms ?? null,
@@ -205,14 +202,13 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
             variety = $2,
             quantity_kg = $3,
             price_per_kg = $4,
-            unit_measure = $5,
-            region = $6,
-            harvest_date = $7,
-            delivery_terms = $8,
-            image_url = COALESCE($9, image_url),
-            image_data = COALESCE($12, image_data),
+            region = $5,
+            harvest_date = $6,
+            delivery_terms = $7,
+            image_url = COALESCE($8, image_url),
+            image_data = COALESCE($11, image_data),
             updated_at = NOW()
-          WHERE id = $10 AND seller_id = $11
+          WHERE id = $9 AND seller_id = $10
         RETURNING ${listingColumns.replaceAll('pl.', '')}
       `,
       [
@@ -220,7 +216,6 @@ router.patch('/:id', requireAuth, requireRole(['seller']), upload.single('image'
         input.data.variety,
         input.data.quantityKg,
         input.data.pricePerKg,
-        input.data.unitMeasure,
         input.data.region,
         input.data.harvestDate ?? null,
         input.data.deliveryTerms ?? null,

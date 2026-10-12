@@ -30,7 +30,7 @@ export const moderationSettingsSchema = z.object({
   bannedWords: z.array(z.string().trim().min(1).max(50)).max(200),
   // Peste atâtea evenimente pe zi nu mai trimitem emailuri individuale, ci doar rezumatul zilnic.
   digestThreshold: z.number().int().min(0).max(10000),
-  // Ora (România/Moldova) la care se trimite rezumatul și începe o „zi” nouă pentru numărătoare.
+  // Ora Moldovei la care se trimite rezumatul și începe o „zi” nouă pentru numărătoare.
   digestHour: z.number().int().min(0).max(23),
 });
 
@@ -70,7 +70,7 @@ export const saveModerationSettings = async (settings: ModerationSettings) => {
 
 // ---------- „Ziua” de moderare: de la ora rezumatului până a doua zi la aceeași oră ----------
 
-const TIME_ZONE = 'Europe/Bucharest';
+const TIME_ZONE = 'Europe/Chisinau';
 
 // Începutul zilei de moderare care conține momentul `at`; `hourParam` e parametrul SQL cu ora rezumatului.
 const windowStartSql = (hourParam: string, at = 'NOW()') => `
@@ -144,6 +144,17 @@ const recordEvent = async (event: ModerationEvent) => {
   );
 
   runInBackground('admins/moderation-event', async () => {
+    // În clopoțelul adminului apar doar cele care așteaptă o decizie (cele aprobate automat sunt în jurnal).
+    if (event.outcome === 'pending') {
+      const pending = await describeEvent(event);
+      if (pending) {
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, message, link) SELECT id, 'moderation_pending', $1, 'admin' FROM users WHERE role = 'admin' AND status = 'approved'`,
+          [`${pending.subject}${event.reasons.length ? `. ${event.reasons[0]}` : ''}`],
+        );
+      }
+    }
+
     const settings = await getModerationSettings();
     const countResult = await pool.query(
       `SELECT COUNT(*)::int AS count FROM moderation_events WHERE created_at >= ${windowStartSql('$1')}`,
@@ -251,7 +262,7 @@ export const moderateListing = async (listingId: string, { edited = false, quiet
   const settings = await getModerationSettings();
   const listing = (await pool.query(
     `
-      SELECT pl.id, pl.seller_id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg, pl.unit_measure,
+      SELECT pl.id, pl.seller_id, pl.product_name, pl.variety, pl.quantity_kg, pl.price_per_kg,
              pl.region, pl.delivery_terms, pl.status, pl.approved_at, pl.image_data,
              (SELECT COUNT(*)::int FROM product_listings p WHERE p.seller_id = pl.seller_id AND p.approved_at IS NOT NULL AND p.id <> pl.id) AS approved_count,
              (SELECT COUNT(*)::int FROM product_listings p WHERE p.seller_id = pl.seller_id AND p.created_at > NOW() - INTERVAL '1 hour') AS recent_count,
@@ -290,7 +301,6 @@ export const moderateListing = async (listingId: string, { edited = false, quiet
           deliveryTerms: listing.delivery_terms,
           quantityKg: Number(listing.quantity_kg),
           pricePerKg: Number(listing.price_per_kg),
-          unitMeasure: listing.unit_measure,
         },
         listing.image_data ?? null,
       );

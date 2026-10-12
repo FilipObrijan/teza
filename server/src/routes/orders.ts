@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { requireAuth, requireRole } from './auth.js';
-import { notifyDistributorOrderStatus, notifyNewMessage, notifySellerOrder } from '../util/notifications.js';
+import { notifyDistributorOrderStatus, notifyNewMessage, notifySellerOrder, notifySellerOrderCancelled } from '../util/notifications.js';
 
 const router = Router();
 
@@ -267,6 +267,42 @@ router.patch('/:id/status', requireAuth, requireRole(['seller']), async (req, re
   }
 });
 
+// Vânzătorul confirmă că a livrat marfa: comanda acceptată devine „livrată” (finalizată). Stocul a scăzut deja la acceptare.
+router.patch('/:id/complete', requireAuth, requireRole(['seller']), async (req, res) => {
+  const idResult = z.string().uuid().safeParse(req.params.id);
+  if (!idResult.success) return res.status(400).json({ message: 'ID de comandă invalid.' });
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE orders o
+        SET status = 'completed', updated_at = NOW()
+        FROM product_listings pl
+        WHERE o.id = $1 AND pl.id = o.listing_id AND pl.seller_id = $2 AND o.status = 'confirmed'
+        RETURNING o.id, o.status
+      `,
+      [idResult.data, req.user?.sub],
+    );
+
+    if (result.rowCount === 0) {
+      const existing = await pool.query(
+        'SELECT o.status FROM orders o JOIN product_listings pl ON pl.id = o.listing_id WHERE o.id = $1 AND pl.seller_id = $2',
+        [idResult.data, req.user?.sub],
+      );
+      if (!existing.rows[0]) return res.status(404).json({ message: 'Comanda nu a fost găsită sau nu îți aparține.' });
+      return res.status(400).json({
+        message: existing.rows[0].status === 'completed' ? 'Comanda este deja marcată ca livrată.' : 'Doar o comandă acceptată poate fi marcată ca livrată.',
+      });
+    }
+
+    notifyDistributorOrderStatus(idResult.data);
+    return res.status(200).json({ order: result.rows[0] });
+  } catch (error) {
+    console.error('Complete order error:', error);
+    return res.status(500).json({ message: 'Eroare la marcarea comenzii ca livrată.' });
+  }
+});
+
 router.get('/:id/messages', requireAuth, requireRole(['seller', 'distributor']), async (req, res) => {
   const idResult = z.string().uuid().safeParse(req.params.id);
   if (!idResult.success || !req.user || req.user.role === 'admin') {
@@ -428,7 +464,14 @@ router.patch('/:id/cancel', requireAuth, requireRole(['distributor']), async (re
       return res.status(200).json({ message: 'Comanda este deja anulată.' });
     }
 
-    if (order.status === 'confirmed' || order.status === 'completed') {
+    // Marfa a fost deja livrată: comanda nu mai poate fi anulată (și stocul nu mai revine).
+    if (order.status === 'completed') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Comanda a fost deja livrată și nu mai poate fi anulată.' });
+    }
+
+    const wasConfirmed = order.status === 'confirmed';
+    if (wasConfirmed) {
       await client.query(
         `
           UPDATE product_listings
@@ -451,6 +494,7 @@ router.patch('/:id/cancel', requireAuth, requireRole(['distributor']), async (re
     );
 
     await client.query('COMMIT');
+    notifySellerOrderCancelled(idResult.data, { wasConfirmed });
     return res.status(200).json({ order: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');

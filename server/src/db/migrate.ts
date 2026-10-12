@@ -124,6 +124,13 @@ export async function migrate() {
   await pool.query('ALTER TABLE product_listings ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ');
   await pool.query(`UPDATE product_listings SET approved_at = created_at WHERE approved_at IS NULL AND status IN ('active', 'paused')`);
 
+  // Notificările din aplicație: unde duce fiecare (cabinet, catalog sau panoul de admin).
+  await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link VARCHAR(20) NOT NULL DEFAULT 'dashboard'`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)');
+
+  // Cantitatea și prețul sunt mereu în kg; coloana cu unitatea de măsură (kg / tonă / ladă) era ambiguă.
+  await pool.query('ALTER TABLE product_listings DROP COLUMN IF EXISTS unit_measure');
+
   // Ștergerea unei comenzi o ascunde doar din istoricul celui care o șterge.
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_seller_at TIMESTAMPTZ');
   await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS hidden_for_distributor_at TIMESTAMPTZ');

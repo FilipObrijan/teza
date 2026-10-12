@@ -27,6 +27,17 @@ npm run dev:server
 
 La prima pornire serverul aplică automat `database/schema.sql` dacă baza de date e goală. Dacă `ADMIN_EMAIL` și `ADMIN_PASSWORD` sunt setate, creează și contul de administrator.
 
+## Teste automate
+
+Testele pe API (`server/test/api.test.mjs`) pornesc serverul compilat pe o bază PostgreSQL de test, pe care o golesc la fiecare rulare. Numele bazei trebuie să conțină „test”.
+
+```bash
+docker compose exec postgres createdb -U agro_user agro_test   # o singură dată
+TEST_DATABASE_URL=postgresql://agro_user:agro_password@localhost:5432/agro_test npm test
+```
+
+Pe GitHub testele rulează automat la fiecare push (`.github/workflows/tests.yml`). Lista cazurilor de testare e în [docs/testare.md](docs/testare.md).
+
 ## Deploy
 
 Toate serviciile au planuri gratuite care permit uz comercial. Fiecare push pe `main` actualizează automat site-ul și serverul.

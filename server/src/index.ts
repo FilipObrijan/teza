@@ -11,6 +11,7 @@ import listingsRouter from './routes/listings.js';
 import dashboardRouter from './routes/dashboard.js';
 import ordersRouter from './routes/orders.js';
 import reviewsRouter from './routes/reviews.js';
+import notificationsRouter from './routes/notifications.js';
 import { startDigestScheduler } from './util/moderation.js';
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/listings', listingsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/orders', ordersRouter);
+app.use('/api/notifications', notificationsRouter);
 app.use('/api', reviewsRouter);
 
 migrate()

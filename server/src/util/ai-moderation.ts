@@ -8,7 +8,6 @@ export type ListingForAI = {
   deliveryTerms: string | null;
   quantityKg: number;
   pricePerKg: number;
-  unitMeasure: string;
 };
 
 export type AIVerdict = { approve: boolean; reason: string; model?: string };
@@ -51,7 +50,7 @@ const describeListing = (listing: ListingForAI, hasImage: boolean) => [
   `Product: ${listing.productName}`,
   `Variety: ${listing.variety}`,
   `Quantity: ${listing.quantityKg} kg`,
-  `Price: ${listing.pricePerKg} lei/kg (unit: ${listing.unitMeasure})`,
+  `Price: ${listing.pricePerKg} lei/kg`,
   `Region: ${listing.region}`,
   `Delivery terms: ${listing.deliveryTerms || '-'}`,
   '</listing>',
@@ -221,7 +220,7 @@ export const testAI = async () => {
   const image = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 90, g: 150, b: 60 } } }).png().toBuffer();
   const startedAt = Date.now();
   const verdict = await checkListingWithAI(
-    { productName: 'Castraveți', variety: 'Test', region: 'Chișinău', deliveryTerms: null, quantityKg: 100, pricePerKg: 10, unitMeasure: 'kg' },
+    { productName: 'Castraveți', variety: 'Test', region: 'Chișinău', deliveryTerms: null, quantityKg: 100, pricePerKg: 10 },
     image,
   );
   return { verdict, durationMs: Date.now() - startedAt };

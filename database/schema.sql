@@ -29,7 +29,6 @@ CREATE TABLE product_listings (
   variety VARCHAR(150) NOT NULL,
   quantity_kg NUMERIC(10,2) NOT NULL CHECK (quantity_kg >= 0),
   price_per_kg NUMERIC(10,2) NOT NULL CHECK (price_per_kg >= 0),
-  unit_measure VARCHAR(20) NOT NULL DEFAULT 'kg',
   region VARCHAR(100) NOT NULL,
   harvest_date DATE,
   delivery_terms VARCHAR(255),
@@ -109,6 +108,7 @@ CREATE TABLE notifications (
   type VARCHAR(50) NOT NULL,
   message TEXT NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT false,
+  link VARCHAR(20) NOT NULL DEFAULT 'dashboard',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -154,6 +154,7 @@ CREATE INDEX idx_orders_distributor_id ON orders(distributor_id);
 CREATE INDEX idx_orders_listing_id ON orders(listing_id);
 CREATE INDEX idx_messages_order_id ON order_messages(order_id);
 CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX idx_notifications_user_created ON notifications(user_id, created_at DESC);
 CREATE INDEX idx_email_verification_tokens_user ON email_verification_tokens(user_id);
 CREATE INDEX idx_reviews_reviewee ON reviews(reviewee_id);
 CREATE INDEX idx_reviews_reviewer ON reviews(reviewer_id);

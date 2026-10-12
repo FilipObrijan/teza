@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "pretest": "npm run build",
+    "test": "node --test test/api.test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

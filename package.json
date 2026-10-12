@@ -13,6 +13,7 @@
     "dev:server": "npm run dev --workspace server",
     "build": "npm run build --workspace client",
     "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "test": "npm test --workspace server"
   }
 }

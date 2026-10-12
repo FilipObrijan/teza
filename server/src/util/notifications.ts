@@ -37,6 +37,14 @@ export const getAdminEmails = async () => {
   return result.rows.map((row) => String(row.email));
 };
 
+// ---------- Notificări în aplicație (clopoțelul din antet) ----------
+
+// Unde duce o notificare când e apăsată: cabinetul, catalogul sau panoul de admin.
+export type NotificationLink = 'dashboard' | 'catalog' | 'admin';
+
+export const addNotification = (userId: string, type: string, message: string, link: NotificationLink = 'dashboard') =>
+  pool.query('INSERT INTO notifications (user_id, type, message, link) VALUES ($1, $2, $3, $4)', [userId, type, message, link]);
+
 export const roleLabel = (role: string) => (role === 'seller' ? 'vânzător' : role === 'distributor' ? 'distribuitor' : role);
 
 export const notifySellerOrder = (orderId: string, { updated = false } = {}) =>
@@ -44,7 +52,7 @@ export const notifySellerOrder = (orderId: string, { updated = false } = {}) =>
     const result = await pool.query(
       `
         SELECT o.ordered_quantity_kg, o.total_amount, o.notes, pl.product_name, pl.variety,
-               seller.email AS seller_email, distributor.full_name AS distributor_name
+               seller.id AS seller_id, seller.email AS seller_email, distributor.full_name AS distributor_name
         FROM orders o
         JOIN product_listings pl ON pl.id = o.listing_id
         JOIN users seller ON seller.id = pl.seller_id
@@ -56,6 +64,13 @@ export const notifySellerOrder = (orderId: string, { updated = false } = {}) =>
     const order = result.rows[0];
     if (!order) return;
 
+    await addNotification(
+      order.seller_id,
+      updated ? 'order_updated' : 'order_new',
+      updated
+        ? `${order.distributor_name} și-a modificat oferta pentru ${order.product_name}: ${formatNumber(order.ordered_quantity_kg)} kg.`
+        : `Ofertă nouă de la ${order.distributor_name} pentru ${order.product_name}: ${formatNumber(order.ordered_quantity_kg)} kg, ${formatNumber(order.total_amount)} lei.`,
+    );
     await sendNotification(order.seller_email, {
       subject: updated ? `Oferta pentru ${order.product_name} a fost modificată` : `Ofertă nouă pentru ${order.product_name}`,
       lines: [
@@ -76,7 +91,7 @@ export const notifyDistributorOrderStatus = (orderId: string) =>
     const result = await pool.query(
       `
         SELECT o.status, o.ordered_quantity_kg, o.total_amount, pl.product_name, pl.variety,
-               distributor.email AS distributor_email, seller.full_name AS seller_name
+               distributor.id AS distributor_id, distributor.email AS distributor_email, seller.full_name AS seller_name
         FROM orders o
         JOIN product_listings pl ON pl.id = o.listing_id
         JOIN users seller ON seller.id = pl.seller_id
@@ -86,9 +101,29 @@ export const notifyDistributorOrderStatus = (orderId: string) =>
       [orderId],
     );
     const order = result.rows[0];
-    if (!order || !['confirmed', 'rejected'].includes(order.status)) return;
+    if (!order || !['confirmed', 'rejected', 'completed'].includes(order.status)) return;
+
+    if (order.status === 'completed') {
+      await addNotification(order.distributor_id, 'order_completed', `${order.seller_name} a marcat comanda de ${order.product_name} ca livrată.`);
+      await sendNotification(order.distributor_email, {
+        subject: `Comanda ta de ${order.product_name} a fost livrată`,
+        lines: [
+          `${order.seller_name} a marcat comanda ca livrată.`,
+          `Produs: ${order.product_name} (${order.variety})`,
+          `Cantitate: ${formatNumber(order.ordered_quantity_kg)} kg`,
+          `Total: ${formatNumber(order.total_amount)} lei`,
+          'Dacă ești mulțumit de colaborare, lasă o recenzie din cabinet.',
+        ],
+      });
+      return;
+    }
 
     const accepted = order.status === 'confirmed';
+    await addNotification(
+      order.distributor_id,
+      accepted ? 'order_confirmed' : 'order_rejected',
+      `${order.seller_name} a ${accepted ? 'acceptat' : 'refuzat'} oferta ta pentru ${order.product_name} (${formatNumber(order.ordered_quantity_kg)} kg).`,
+    );
     await sendNotification(order.distributor_email, {
       subject: accepted ? `Oferta ta pentru ${order.product_name} a fost acceptată` : `Oferta ta pentru ${order.product_name} a fost refuzată`,
       lines: [
@@ -103,6 +138,30 @@ export const notifyDistributorOrderStatus = (orderId: string) =>
           : 'Poți modifica oferta din cabinet și o poți trimite din nou.',
       ],
     });
+  });
+
+// Vânzătorului: distribuitorul și-a anulat comanda (stocul a revenit, dacă fusese acceptată).
+export const notifySellerOrderCancelled = (orderId: string, { wasConfirmed = false } = {}) =>
+  runInBackground('seller/order-cancelled', async () => {
+    const result = await pool.query(
+      `
+        SELECT o.ordered_quantity_kg, pl.product_name, seller.id AS seller_id, distributor.full_name AS distributor_name
+        FROM orders o
+        JOIN product_listings pl ON pl.id = o.listing_id
+        JOIN users seller ON seller.id = pl.seller_id
+        JOIN users distributor ON distributor.id = o.distributor_id
+        WHERE o.id = $1
+      `,
+      [orderId],
+    );
+    const order = result.rows[0];
+    if (!order) return;
+
+    await addNotification(
+      order.seller_id,
+      'order_cancelled',
+      `${order.distributor_name} a anulat comanda de ${formatNumber(order.ordered_quantity_kg)} kg ${order.product_name}.${wasConfirmed ? ' Cantitatea a revenit în stoc.' : ''}`,
+    );
   });
 
 // Email pentru un mesaj nou în chat, fără spam: cel mult un email per conversație până când destinatarul o citește,
@@ -158,8 +217,8 @@ export const notifyNewMessage = (messageId: string) =>
 
 const REVIEW_QUERY = `
   SELECT r.rating, r.comment, r.reply, pl.product_name,
-         reviewer.full_name AS reviewer_name, reviewer.email AS reviewer_email,
-         reviewee.full_name AS reviewee_name, reviewee.email AS reviewee_email
+         reviewer.id AS reviewer_id, reviewer.full_name AS reviewer_name, reviewer.email AS reviewer_email,
+         reviewee.id AS reviewee_id, reviewee.full_name AS reviewee_name, reviewee.email AS reviewee_email
   FROM reviews r
   JOIN users reviewer ON reviewer.id = r.reviewer_id
   JOIN users reviewee ON reviewee.id = r.reviewee_id
@@ -174,8 +233,14 @@ const starsText = (rating: number) => `${'★'.repeat(rating)}${'☆'.repeat(5 -
 export const notifyNewReview = (reviewId: string, { updated = false } = {}) =>
   runInBackground('review/new', async () => {
     const review = (await pool.query(REVIEW_QUERY, [reviewId])).rows[0];
-    if (!review?.reviewee_email) return;
+    if (!review) return;
 
+    await addNotification(
+      review.reviewee_id,
+      updated ? 'review_updated' : 'review_new',
+      `${review.reviewer_name} ${updated ? 'și-a modificat recenzia' : 'ți-a lăsat o recenzie'}: ${review.rating}/5 stele (${review.product_name}).`,
+    );
+    if (!review.reviewee_email) return;
     await sendNotification(review.reviewee_email, {
       subject: updated ? `${review.reviewer_name} și-a modificat recenzia` : `Recenzie nouă de la ${review.reviewer_name}`,
       lines: [
@@ -193,8 +258,10 @@ export const notifyNewReview = (reviewId: string, { updated = false } = {}) =>
 export const notifyReviewReply = (reviewId: string) =>
   runInBackground('review/reply', async () => {
     const review = (await pool.query(REVIEW_QUERY, [reviewId])).rows[0];
-    if (!review?.reviewer_email || !review.reply) return;
+    if (!review?.reply) return;
 
+    await addNotification(review.reviewer_id, 'review_reply', `${review.reviewee_name} a răspuns la recenzia ta despre ${review.product_name}.`);
+    if (!review.reviewer_email) return;
     await sendNotification(review.reviewer_email, {
       subject: `${review.reviewee_name} a răspuns la recenzia ta`,
       lines: [
@@ -221,6 +288,13 @@ export const notifyDistributorsNewListing = (listingId: string) =>
     const listing = listingResult.rows[0];
     if (!listing) return;
 
+    await pool.query(
+      `
+        INSERT INTO notifications (user_id, type, message, link)
+        SELECT id, 'listing_new', $1, 'catalog' FROM users WHERE role = 'distributor' AND status = 'approved'
+      `,
+      [`Anunț nou: ${listing.product_name} (${listing.variety}), ${formatNumber(listing.quantity_kg)} kg la ${formatNumber(listing.price_per_kg)} lei/kg, ${listing.region}.`],
+    );
     await sendToAll(distributorsResult.rows.map((row) => String(row.email)), {
       subject: `Anunț nou: ${listing.product_name} (${listing.variety})`,
       lines: [
