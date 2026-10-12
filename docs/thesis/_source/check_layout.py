@@ -22,7 +22,7 @@ def nonempty(i, step):
 problems, checked = [], 0
 started = False
 for i, el in enumerate(body):
-    if el.tag == qn('w:p') and text(el).strip() == 'INTRODUCTION':
+    if el.tag == qn('w:p') and text(el).strip().endswith('INTRODUCTION'):
         started = True
     if not started:
         continue

@@ -10,6 +10,10 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import content as C
+MODE = os.environ.get('MODE', 'report')
+if MODE == 'srs':
+    import srs_standalone
+    C.CH1 = srs_standalone.build_blocks()
 
 # citations are written as [@key] in content.py and numbered here in order of first appearance
 def _number_citations():
@@ -66,8 +70,12 @@ def para_of(el):
     return docx.text.paragraph.Paragraph(el, d._body)
 
 # ---------- cover ----------
-set_text(para_of(els[6]), C.TITLE.upper())
-set_text(para_of(els[10]), "Individual project")
+if MODE == 'srs':
+    set_text(para_of(els[6]), srs_standalone.TITLE)
+    set_text(para_of(els[10]), C.TITLE)
+else:
+    set_text(para_of(els[6]), C.TITLE.upper())
+    set_text(para_of(els[10]), "Individual project")
 tbl = docx.table.Table(els[14], d._body)
 rows = tbl.rows
 def fill_cell(cell, text):
@@ -92,6 +100,9 @@ def placeholder_runs(p, text):
     return r
 placeholder_runs(para_of(els[32]), "[The abstract (300–500 words) will be written after Chapters 1–3 are completed.]")
 placeholder_runs(para_of(els[33]), "Keywords: [5–7 keywords]")
+if MODE == 'srs':
+    for el in els[29:34]:
+        body.remove(el)
 
 sect_par = els[34]
 # delete everything after the abstract section until the final sectPr
@@ -316,6 +327,9 @@ def render(blocks):
         elif kind == 'table':
             table(b[1], b[2], b[3], b[4], highlight=(len(b) > 5 and b[5] == 'highlight'))
 
+if MODE == 'srs':
+    _all = str(C.CH1)
+    C.ABBREVIATIONS = [x for x in C.ABBREVIATIONS if re.search(r'(?<![A-Za-z])' + re.escape(x[0]) + r'(?![A-Za-z])', _all)]
 # ---------- list of abbreviations (inside the abstract section, before Introduction) ----------
 sp = para_of(sect_par)
 h1("LIST OF ABBREVIATIONS", before=sp)
@@ -331,61 +345,77 @@ for i, (a, desc) in enumerate(C.ABBREVIATIONS):
             for r in p.runs: r.font.size = Pt(12)
 set_grid(t, [3, 14])
 
-# ---------- main body ----------
-h1("INTRODUCTION")
-ph_par("[The introduction (1–2 pages) will be written after the chapters are completed: relevance of the topic, "
-       "the problem, the aim, the objectives, the object of research, the methods used and the structure of the paper.]")
+if MODE == 'srs':
+    # ---------- main body ----------
+    render(C.CH1)
+    h1("REFERENCES")
+    for i, ref in enumerate(C.REFERENCES, 1):
+        p = new_par('Normal')
+        pf = p.paragraph_format
+        pf.left_indent = Cm(1.0); pf.first_line_indent = Cm(-1.0)
+        pf.space_after = Pt(3)
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        r = p.add_run("[%d]\t%s" % (i, ref)); tnr(r, 12)
+        pf.tab_stops.add_tab_stop(Cm(1.0))
 
-render(C.CH1)
 
-h1("2 UML MODELLING OF THE SYSTEM")
-ph_par("[Chapter 2 will be completed at the next stage: use case model, activity diagrams, sequence and state "
-       "diagrams, class diagram, component and package diagrams, architecture and deployment.]")
-h1("3 IMPLEMENTATION OF THE SYSTEM")
-ph_par("[Chapter 3 will be completed at the implementation stage of the bachelor's project.]")
-h1("CONCLUSIONS")
-ph_par("[The general conclusions (2–3 pages) will be written at the end of the work.]")
+else:
+    # ---------- main body ----------
+    h1("INTRODUCTION")
+    ph_par("[The introduction (1–2 pages) will be written after the chapters are completed: relevance of the topic, "
+           "the problem, the aim, the objectives, the object of research, the methods used and the structure of the paper.]")
 
-h1("REFERENCES")
-for i, ref in enumerate(C.REFERENCES, 1):
-    p = new_par('Normal')
-    pf = p.paragraph_format
-    pf.left_indent = Cm(1.0); pf.first_line_indent = Cm(-1.0)
-    pf.space_after = Pt(3)
-    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    r = p.add_run("[%d]\t%s" % (i, ref)); tnr(r, 12)
-    pf.tab_stops.add_tab_stop(Cm(1.0))
+    render(C.CH1)
 
-h1("APPENDICES")
-h2("APPENDIX A – Project proposal", center=True)
-p = body_par("The project proposal approved for the bachelor's thesis is reproduced below in English.")
-t = d.add_table(rows=len(C.PROPOSAL), cols=2)
-t.style = d.styles['Table Grid']; t.alignment = WD_TABLE_ALIGNMENT.CENTER
-for i, (lab, lines) in enumerate(C.PROPOSAL):
-    cell_text(t.rows[i].cells[0], lab, bold=True)
-    c = t.rows[i].cells[1]
-    if len(lines) == 1:
-        cell_text(c, lines[0])
-    else:
-        cell_text(c, "\n".join("- " + l for l in lines))
-    t.rows[i].cells[0].width = Cm(3.5); t.rows[i].cells[1].width = Cm(13.5)
-    for cc in t.rows[i].cells:
-        for pp in cc.paragraphs:
-            pp.paragraph_format.space_after = Pt(3)
-            for r in pp.runs: r.font.size = Pt(11)
-set_grid(t, [3.5, 13.5])
-d.add_paragraph()
-p = body_par("Student: Obrijan Filip, group FAF-232", indent=False)
-p = body_par("Scientific supervisor: Ciutac Ștefănița", indent=False)
+    h1("2 UML MODELLING OF THE SYSTEM")
+    ph_par("[Chapter 2 will be completed at the next stage: use case model, activity diagrams, sequence and state "
+           "diagrams, class diagram, component and package diagrams, architecture and deployment.]")
+    h1("3 IMPLEMENTATION OF THE SYSTEM")
+    ph_par("[Chapter 3 will be completed at the implementation stage of the bachelor's project.]")
+    h1("CONCLUSIONS")
+    ph_par("[The general conclusions (2–3 pages) will be written at the end of the work.]")
 
-h2("APPENDIX B – Questionnaire and interview guide", center=True, page_break=True)
-body_par(C.QUESTIONNAIRE_INTRO)
-p = body_par("Questions for producers (sellers):", indent=False); p.runs[0].font.bold = True
-for i, q in enumerate(C.Q_PRODUCERS):
-    qp = body_par("%s) %s" % ("abcdefghij"[i], q)); qp.paragraph_format.first_line_indent = Cm(-0.6); qp.paragraph_format.left_indent = Cm(1.85)
-p = body_par("Questions for wholesale buyers (distributors, HoReCa, retail):", indent=False); p.runs[0].font.bold = True
-for i, q in enumerate(C.Q_BUYERS):
-    qp = body_par("%s) %s" % ("abcdefghij"[i], q)); qp.paragraph_format.first_line_indent = Cm(-0.6); qp.paragraph_format.left_indent = Cm(1.85)
+    h1("REFERENCES")
+    for i, ref in enumerate(C.REFERENCES, 1):
+        p = new_par('Normal')
+        pf = p.paragraph_format
+        pf.left_indent = Cm(1.0); pf.first_line_indent = Cm(-1.0)
+        pf.space_after = Pt(3)
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        r = p.add_run("[%d]\t%s" % (i, ref)); tnr(r, 12)
+        pf.tab_stops.add_tab_stop(Cm(1.0))
+
+    h1("APPENDICES")
+    h2("APPENDIX A – Project proposal", center=True)
+    p = body_par("The project proposal approved for the bachelor's thesis is reproduced below in English.")
+    t = d.add_table(rows=len(C.PROPOSAL), cols=2)
+    t.style = d.styles['Table Grid']; t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, (lab, lines) in enumerate(C.PROPOSAL):
+        cell_text(t.rows[i].cells[0], lab, bold=True)
+        c = t.rows[i].cells[1]
+        if len(lines) == 1:
+            cell_text(c, lines[0])
+        else:
+            cell_text(c, "\n".join("- " + l for l in lines))
+        t.rows[i].cells[0].width = Cm(3.5); t.rows[i].cells[1].width = Cm(13.5)
+        for cc in t.rows[i].cells:
+            for pp in cc.paragraphs:
+                pp.paragraph_format.space_after = Pt(3)
+                for r in pp.runs: r.font.size = Pt(11)
+    set_grid(t, [3.5, 13.5])
+    d.add_paragraph()
+    p = body_par("Student: Obrijan Filip, group FAF-232", indent=False)
+    p = body_par("Scientific supervisor: Ciutac Ștefănița", indent=False)
+
+    h2("APPENDIX B – Questionnaire and interview guide", center=True, page_break=True)
+    body_par(C.QUESTIONNAIRE_INTRO)
+    p = body_par("Questions for producers (sellers):", indent=False); p.runs[0].font.bold = True
+    for i, q in enumerate(C.Q_PRODUCERS):
+        qp = body_par("%s) %s" % ("abcdefghij"[i], q)); qp.paragraph_format.first_line_indent = Cm(-0.6); qp.paragraph_format.left_indent = Cm(1.85)
+    p = body_par("Questions for wholesale buyers (distributors, HoReCa, retail):", indent=False); p.runs[0].font.bold = True
+    for i, q in enumerate(C.Q_BUYERS):
+        qp = body_par("%s) %s" % ("abcdefghij"[i], q)); qp.paragraph_format.first_line_indent = Cm(-0.6); qp.paragraph_format.left_indent = Cm(1.85)
+
 
 # ---------- pagination rules: no table/figure at the top or bottom of a page, never split ----------
 def kwn(el):
@@ -400,7 +430,7 @@ def prev_text_par(el):
 
 started = False
 for el in list(body.iterchildren()):
-    if el.tag == qn('w:p') and ''.join(t.text or '' for t in el.iter(qn('w:t'))).strip() == 'INTRODUCTION':
+    if el.tag == qn('w:p') and ''.join(t.text or '' for t in el.iter(qn('w:t'))).strip().endswith('INTRODUCTION'):
         started = True
     if not started:
         continue
@@ -453,10 +483,11 @@ def mk_run(text=None, fld=None, instr=None, tab=False):
 
 entries = [(1, "ABSTRACT", None), (1, "LIST OF ABBREVIATIONS", None)] + TOC_ENTRIES
 # abstract heading bookmark
-abs_p = para_of(els[29])
-add_bookmark(abs_p, '_Toc900001')
+if MODE != 'srs':
+    abs_p = para_of(els[29])
+    add_bookmark(abs_p, '_Toc900001')
 # abbreviations heading bookmark is TOC_ENTRIES[0]
-entries = [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
+entries = TOC_ENTRIES if MODE == 'srs' else [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
 for k, (lvl, text, bm) in enumerate(entries):
     p = OxmlElement('w:p')
     ppr = OxmlElement('w:pPr'); st = OxmlElement('w:pStyle'); st.set(qn('w:val'), 'TOC%d' % min(lvl, 2)); ppr.append(st)

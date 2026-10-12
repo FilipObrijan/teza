@@ -23,3 +23,9 @@ python3 check_layout.py /tmp/PBL_Report_Obrijan_Filip_FAF232.pdf ../PBL_Report_O
 ```
 
 Diagramele din `diagrams/`: `context.puml` (PlantUML, `plantuml -tpng context.puml`) și `usecase_draw.py` (diagramele de cazuri de utilizare, desenate cu Pillow pentru o așezare fără linii încrucișate). Textul subcapitolului 1.6 (SRS) e în `srs_block.py`.
+
+Documentul SRS separat (`../SRS_AgroHub_Obrijan_Filip_FAF232.docx`) se generează din același text, cu `MODE=srs`:
+
+```bash
+MODE=srs python3 build.py /tmp/pass1.docx   # apoi pages.py și din nou build.py, ca la raport
+```
