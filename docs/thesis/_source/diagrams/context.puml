@@ -1,0 +1,35 @@
+@startuml
+skinparam dpi 200
+skinparam defaultFontName "Liberation Serif"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor #F2F2F2
+  BorderColor #333333
+}
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+left to right direction
+
+actor "Guest" as G
+actor "Seller" as S
+actor "Distributor" as D
+actor "Administrator" as A
+
+rectangle "<b>AgroHub</b>\nB2B web platform\n(web client, REST API,\nPostgreSQL database)" as SYS #E8E8E8
+
+rectangle "E-mail service\n(Brevo)" as MAIL
+rectangle "Google Identity\nServices" as GOOGLE
+rectangle "AI moderation service\n(Gemini / Claude)" as AI
+
+G --> SYS : searches the catalogue,\nregisters
+S --> SYS : listings, stock,\norder decisions, messages
+D --> SYS : orders, messages,\nreviews
+A --> SYS : account and listing\ndecisions, settings
+SYS --> MAIL : verification codes,\nnotifications, daily digest
+SYS --> GOOGLE : verifies the\nsign-in token
+SYS --> AI : listing text and photo,\nreceives the verdict
+@enduml

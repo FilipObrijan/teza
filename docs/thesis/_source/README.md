@@ -21,3 +21,5 @@ Verificarea paginării (niciun tabel sau figură la început/sfârșit de pagin�
 soffice --headless --convert-to pdf --outdir /tmp ../PBL_Report_Obrijan_Filip_FAF232.docx
 python3 check_layout.py /tmp/PBL_Report_Obrijan_Filip_FAF232.pdf ../PBL_Report_Obrijan_Filip_FAF232.docx
 ```
+
+Diagramele din `diagrams/`: `context.puml` (PlantUML, `plantuml -tpng context.puml`) și `usecase_draw.py` (diagramele de cazuri de utilizare, desenate cu Pillow pentru o așezare fără linii încrucișate). Textul subcapitolului 1.6 (SRS) e în `srs_block.py`.

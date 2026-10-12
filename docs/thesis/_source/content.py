@@ -6,18 +6,27 @@
 TITLE = "B2B Web Platform for Wholesale Order Management and Optimisation of Agricultural Product Distribution Flows"
 
 ABBREVIATIONS = [
+    ("AI", "Artificial Intelligence"),
+    ("API", "Application Programming Interface"),
     ("AS-IS", "Current state of a business process, before the introduction of the new system"),
     ("B2B", "Business-to-Business, trade relations between companies"),
     ("EU", "European Union"),
     ("FAO", "Food and Agriculture Organization of the United Nations"),
     ("GDP", "Gross Domestic Product"),
+    ("FR", "Functional Requirement"),
     ("HoReCa", "Hotels, Restaurants and Cafés, the food service sector"),
+    ("HTTPS", "Hypertext Transfer Protocol Secure"),
     ("MVP", "Minimum Viable Product"),
     ("NBS", "National Bureau of Statistics of the Republic of Moldova"),
+    ("NFR", "Non-Functional Requirement"),
+    ("REST", "Representational State Transfer, an architectural style for web APIs"),
     ("SaaS", "Software as a Service"),
+    ("SRS", "Software Requirements Specification"),
     ("SWOT", "Strengths, Weaknesses, Opportunities, Threats"),
-    ("UVP", "Unique Value Proposition"),
     ("TO-BE", "Target state of a business process, after the introduction of the new system"),
+    ("UC", "Use Case"),
+    ("UML", "Unified Modeling Language"),
+    ("UVP", "Unique Value Proposition"),
 ]
 
 CH1 = [
@@ -39,8 +48,9 @@ CH1 = [
       "Subchapter 1.3 reviews similar systems available on the market and ends with the SWOT analysis of the "
       "proposed idea. Subchapter 1.4 presents the plan of the preliminary user research and the working hypotheses "
       "about the needs of the users. Subchapter 1.5 defines the target audience segments, the key problems solved by "
-      "the platform and its unique value proposition. The technical specification and the functional and "
-      "non-functional requirements that follow from these findings are formulated in subchapter 1.6."),
+      "the platform and its unique value proposition. Subchapter 1.6 contains the software requirements "
+      "specification that follows from these findings: the functional and non-functional requirements, the actors, "
+      "the use cases and the user stories of the system."),
 
 ('h2', "1.1 Analysis of the field of study"),
 ('p', "Agriculture has always held a special place in the Moldovan economy, even though its direct share has "
@@ -383,9 +393,8 @@ CH1 = [
       "is the main competitive advantage, and it also sets the priority for the launch: the UVP addresses producers "
       "first, because they bring the supply, while buyers are attracted by the number of real offers."),
 ('p', "With the target audience, the key problems and the value proposition defined, the next step is to translate "
-      "them into the technical specification and the requirements of the system, which are presented in "
-      "subchapter 1.6."),
-]
+      "them into the software requirements specification of the system, presented in subchapter 1.6."),
+] + __import__('srs_block').SRS
 
 REFS = {
  'trade': 'International Trade Administration, "Moldova – Agriculture," Country Commercial Guide. [Online]. Available: https://www.trade.gov/country-commercial-guides/moldova-agriculture (accessed Oct. 2, 2026).',
@@ -404,6 +413,11 @@ REFS = {
  'cooper': 'A. Cooper, The Inmates Are Running the Asylum. Indianapolis, IN, USA: Sams Publishing, 1999.',
  'kotler': 'P. Kotler and K. L. Keller, Marketing Management, 15th ed. Harlow, England: Pearson Education, 2016.',
  'osterwalder': 'A. Osterwalder, Y. Pigneur, G. Bernarda, and A. Smith, Value Proposition Design: How to Create Products and Services Customers Want. Hoboken, NJ, USA: Wiley, 2014.',
+ 'ieee29148': 'ISO/IEC/IEEE 29148:2018, Systems and software engineering – Life cycle processes – Requirements engineering. Geneva, Switzerland: ISO, 2018.',
+ 'sommerville': 'I. Sommerville, Software Engineering, 10th ed. Boston, MA, USA: Pearson, 2016.',
+ 'law195': 'Law No. 195 of 25.07.2024 on personal data protection. Official Monitor of the Republic of Moldova, 23.08.2024 (in force since 23.08.2026).',
+ 'cohn': 'M. Cohn, User Stories Applied: For Agile Software Development. Boston, MA, USA: Addison-Wesley, 2004.',
+ 'owasp': 'OWASP Foundation, "OWASP Top 10:2021 – The ten most critical web application security risks." [Online]. Available: https://owasp.org/Top10/ (accessed Oct. 12, 2026).',
 }
 
 PROPOSAL = [

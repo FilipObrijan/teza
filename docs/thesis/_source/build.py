@@ -157,6 +157,15 @@ def h2(text, before=None, center=False, page_break=False, toc=True):
         add_bookmark(p, name); TOC_ENTRIES.append((2, text, name))
     return p
 
+def h3(text, toc=True):
+    p = new_par('Heading 3')
+    p.paragraph_format.first_line_indent = Cm(1.25)
+    r = p.add_run(text); tnr(r, 12, True); r.font.italic = False
+    if toc:
+        name = '_Toc9%05d' % bm_id[0]
+        add_bookmark(p, name); TOC_ENTRIES.append((3, text, name))
+    return p
+
 def body_par(text, before=None, indent=True, highlight=False):
     p = new_par('Body Text 2026', before)
     if not indent:
@@ -297,6 +306,7 @@ def render(blocks):
         kind = b[0]
         if kind == 'h1': h1(b[1])
         elif kind == 'h2': h2(b[1])
+        elif kind == 'h3': h3(b[1])
         elif kind == 'p': body_par(b[1])
         elif kind == 'pc': body_par(b[1], indent=False)
         elif kind == 'ph': body_par(b[1], highlight=True)
@@ -449,7 +459,9 @@ add_bookmark(abs_p, '_Toc900001')
 entries = [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
 for k, (lvl, text, bm) in enumerate(entries):
     p = OxmlElement('w:p')
-    ppr = OxmlElement('w:pPr'); st = OxmlElement('w:pStyle'); st.set(qn('w:val'), 'TOC%d' % lvl); ppr.append(st)
+    ppr = OxmlElement('w:pPr'); st = OxmlElement('w:pStyle'); st.set(qn('w:val'), 'TOC%d' % min(lvl, 2)); ppr.append(st)
+    if lvl == 3:
+        ind = OxmlElement('w:ind'); ind.set(qn('w:left'), '566'); ppr.append(ind)
     p.append(ppr)
     if k == 0:
         p.append(mk_run(fld='begin')); p.append(mk_run(instr=' TOC \\o "1-3" \\h \\z \\u ')); p.append(mk_run(fld='separate'))
