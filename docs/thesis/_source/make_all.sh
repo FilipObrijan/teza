@@ -22,3 +22,4 @@ build() {  # mode, output file
 build report PBL_Report_Obrijan_Filip_FAF232.docx
 build srs SRS_AgroHub_Obrijan_Filip_FAF232.docx
 build nfr SRS_AgroHub_NonFunctional_Requirements_Obrijan_Filip_FAF232.docx
+build review SRS_Validation_Report_ESL_Mitu_Vladlen_by_Obrijan_Filip.docx
