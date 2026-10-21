@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { API_BASE, AuthUser, authHeaders, orderStatusClass, orderStatusLabel } from './shared';
+import { API_BASE, AuthUser, authHeaders, orderStatusClass, orderStatusLabel, pollWhileVisible } from './shared';
 
 type ChatMessage = { id: string; content: string; senderId: string; senderName: string; createdAt: string };
 
@@ -48,8 +48,7 @@ export default function Messenger({ user }: { user: AuthUser }) {
     };
 
     void loadConversations();
-    const timer = window.setInterval(loadConversations, 10000);
-    return () => window.clearInterval(timer);
+    return pollWhileVisible(() => void loadConversations(), 15000);
   }, []);
 
   const markRead = async (orderId: string) => {
@@ -88,10 +87,10 @@ export default function Messenger({ user }: { user: AuthUser }) {
     setError('');
     setIsConfirmingDelete(false);
     void loadMessages(true);
-    const timer = window.setInterval(() => void loadMessages(false), 5000);
+    const stopPolling = pollWhileVisible(() => void loadMessages(false), 5000);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      stopPolling();
     };
   }, [isOpen, activeId]);
 

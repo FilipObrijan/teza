@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE, authHeaders } from './shared';
+import { API_BASE, authHeaders, pollWhileVisible } from './shared';
 
 export type NotificationLink = 'dashboard' | 'catalog' | 'admin';
 
 type AppNotification = { id: string; type: string; message: string; link: NotificationLink; isRead: boolean; createdAt: string };
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 60_000;
 
 const timeAgo = (value: string) => {
   const minutes = Math.round((Date.now() - new Date(value).getTime()) / 60_000);
@@ -37,8 +37,7 @@ export function NotificationBell({ onNavigate }: { onNavigate: (link: Notificati
 
   useEffect(() => {
     void load();
-    const timer = window.setInterval(() => void load(), POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    return pollWhileVisible(() => void load(), POLL_INTERVAL_MS);
   }, [load]);
 
   // Se închide la click în afară sau la Esc, ca meniurile din cabinet.

@@ -4,7 +4,7 @@ import Messenger from './Messenger';
 import { AdminAutomation } from './AdminAutomation';
 import { NotificationBell, NotificationLink } from './NotificationBell';
 import { AdminReviews, MyReviews, RatingBadge, ReviewFormModal, ReviewsModal } from './Reviews';
-import { API_BASE, AuthUser, RatingSummary, orderStatusClass, orderStatusLabel } from './shared';
+import { API_BASE, AuthUser, RatingSummary, orderStatusClass, orderStatusLabel, pollWhileVisible } from './shared';
 
 type Listing = {
   id: string;
@@ -344,9 +344,7 @@ function PersonalDashboard({ user, onBack }: { user: AuthUser; onBack: () => voi
 
   useEffect(() => {
     loadDashboard();
-    const refreshTimer = window.setInterval(loadDashboard, 5000);
-
-    return () => window.clearInterval(refreshTimer);
+    return pollWhileVisible(loadDashboard, 20000);
   }, [user.id]);
 
   const submitListing = async (event: FormEvent<HTMLFormElement>) => {
@@ -497,9 +495,7 @@ export default function App() {
 
   useEffect(() => {
     loadCatalog();
-    const refreshTimer = window.setInterval(loadCatalog, 5000);
-
-    return () => window.clearInterval(refreshTimer);
+    return pollWhileVisible(loadCatalog, 60000);
   }, []);
 
   useEffect(() => {

@@ -52,10 +52,16 @@ export const DEFAULT_MODERATION_SETTINGS: ModerationSettings = {
   digestHour: 20,
 };
 
+// Setările stau în memorie după prima citire (se schimbă doar prin saveModerationSettings), ca verificările
+// periodice să nu atingă baza de date: Neon oprește baza după 5 minute fără cereri și taxează doar cât e pornită.
+let cachedSettings: ModerationSettings | null = null;
+
 export const getModerationSettings = async (): Promise<ModerationSettings> => {
+  if (cachedSettings) return cachedSettings;
   const result = await pool.query(`SELECT value FROM app_settings WHERE key = 'moderation'`);
   const parsed = moderationSettingsSchema.safeParse({ ...DEFAULT_MODERATION_SETTINGS, ...(result.rows[0]?.value ?? {}) });
-  return parsed.success ? parsed.data : DEFAULT_MODERATION_SETTINGS;
+  cachedSettings = parsed.success ? parsed.data : DEFAULT_MODERATION_SETTINGS;
+  return cachedSettings;
 };
 
 export const saveModerationSettings = async (settings: ModerationSettings) => {
@@ -66,6 +72,7 @@ export const saveModerationSettings = async (settings: ModerationSettings) => {
     `,
     [JSON.stringify(settings)],
   );
+  cachedSettings = settings;
 };
 
 // ---------- „Ziua” de moderare: de la ora rezumatului până a doua zi la aceeași oră ----------
@@ -309,6 +316,7 @@ export const moderateListing = async (listingId: string, { edited = false, quiet
     } catch (error) {
       console.error('AI moderation failed:', error);
       aiFailed = true;
+      aiRetryPending = true;
       reasons.push(`${AI_FAILURE_PREFIX}, așa că anunțul așteaptă verificarea manuală (se reîncearcă automat). Cauza: ${describeAIError(error)}.`);
     }
   }
@@ -415,10 +423,18 @@ export const sendDigestNow = async () => {
 const AI_RETRY_INTERVAL_MS = 15 * 60_000;
 const AI_RETRY_MAX_ATTEMPTS = 12;
 const aiRetries = new Map<string, { attempts: number; lastAt: number }>();
+// Baza e întrebată doar dacă știm că există anunțuri oprite de o pană AI (la pornire verificăm o dată).
+let aiRetryPending = true;
+let lastAIRetryRun = 0;
 
 const retryAIFailures = async () => {
+  if (!aiRetryPending || Date.now() - lastAIRetryRun < AI_RETRY_INTERVAL_MS) return;
+  lastAIRetryRun = Date.now();
   const settings = await getModerationSettings();
-  if (!settings.autoApproveListings || !settings.aiCheckListings || !isAIConfigured()) return;
+  if (!settings.autoApproveListings || !settings.aiCheckListings || !isAIConfigured()) {
+    aiRetryPending = false;
+    return;
+  }
 
   const result = await pool.query(
     `
@@ -436,8 +452,14 @@ const retryAIFailures = async () => {
     [`${AI_FAILURE_PREFIX}%`],
   );
 
+  const retriable = result.rows.filter(({ id }) => (aiRetries.get(id)?.attempts ?? 0) < AI_RETRY_MAX_ATTEMPTS);
+  if (retriable.length === 0) {
+    aiRetryPending = false;
+    return;
+  }
+
   let processed = 0;
-  for (const { id } of result.rows) {
+  for (const { id } of retriable) {
     const state = aiRetries.get(id) ?? { attempts: 0, lastAt: 0 };
     if (state.attempts >= AI_RETRY_MAX_ATTEMPTS || Date.now() - state.lastAt < AI_RETRY_INTERVAL_MS) continue;
     // Câteva pe rând, ca să nu consumăm limita gratuită dintr-odată.
@@ -448,11 +470,31 @@ const retryAIFailures = async () => {
   }
 };
 
+// „Ziua” de rezumat curentă (data din Moldova, decalată cu ora rezumatului), calculată fără baza de date.
+const digestDayKey = (digestHour: number) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date(Date.now() - digestHour * 3_600_000));
+let lastDigestDayKey: string | null = null;
+
 export const startDigestScheduler = () => {
-  const tick = () => {
-    retryAIFailures().catch((error) => console.error('AI retry failed:', error));
-    sendDigestIfDue().catch((error) => console.error('Daily digest failed:', error));
+  // Verificarea rulează des, dar atinge baza de date doar o dată pe zi (după ora rezumatului)
+  // și când există anunțuri de reverificat, ca baza Neon să se poată opri între timp.
+  const tick = async () => {
+    try {
+      await retryAIFailures();
+    } catch (error) {
+      console.error('AI retry failed:', error);
+    }
+    try {
+      const dayKey = digestDayKey((await getModerationSettings()).digestHour);
+      if (dayKey !== lastDigestDayKey) {
+        await sendDigestIfDue();
+        lastDigestDayKey = dayKey;
+      }
+    } catch (error) {
+      console.error('Daily digest failed:', error);
+    }
   };
-  setTimeout(tick, 30_000).unref();
-  setInterval(tick, 5 * 60_000).unref();
+  setTimeout(() => void tick(), 30_000).unref();
+  setInterval(() => void tick(), 5 * 60_000).unref();
 };

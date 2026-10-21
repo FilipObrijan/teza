@@ -22,3 +22,19 @@ export const orderStatusLabel =(status: string) => ({
 
 export const orderStatusClass = (status: string) =>
   `status-${status === 'confirmed' || status === 'completed' ? 'active' : status === 'rejected' || status === 'cancelled' ? 'rejected' : 'pending'}`;
+
+// Reîncărcare periodică doar cât tabul e vizibil (plus o dată când utilizatorul revine pe el).
+// Un tab uitat deschis nu mai ține pornite serverul și baza de date (Neon le taxează cât sunt active).
+export const pollWhileVisible = (load: () => void, intervalMs: number) => {
+  const timer = window.setInterval(() => {
+    if (!document.hidden) load();
+  }, intervalMs);
+  const onVisible = () => {
+    if (!document.hidden) load();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener('visibilitychange', onVisible);
+  };
+};
