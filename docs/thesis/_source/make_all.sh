@@ -26,3 +26,5 @@ build review SRS_Validation_Report_ESL_Mitu_Vladlen_by_Obrijan_Filip.docx
 build proposal Project_Proposal_AgroHub_Obrijan_Filip_FAF232.docx
 # the project proposal is delivered as PDF
 (cd "$WORK/proposal" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/Project_Proposal_AgroHub_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
+build usecase UseCase_PlaceWholesaleOrder_Obrijan_Filip_FAF232.docx
+(cd "$WORK/usecase" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/UseCase_PlaceWholesaleOrder_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
