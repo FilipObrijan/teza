@@ -1,0 +1,72 @@
+@startuml
+!pragma layout smetana
+skinparam dpi 200
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F2F2F2
+  BorderColor #282828
+  ArrowColor #282828
+}
+hide circle
+hide methods
+
+entity "User" as U {
+  * id
+  --
+  full name, e-mail, phone, region
+  role, status
+  password hash / Google ID
+}
+entity "Listing" as L {
+  * id
+  --
+  product, variety, region
+  quantity (kg), price (lei/kg)
+  harvest date, delivery terms
+  photo, status
+}
+entity "Order" as O {
+  * id
+  --
+  quantity (kg), unit price, total
+  status, notes
+}
+entity "Stock event" as I {
+  * id
+  --
+  quantity change (kg), reason
+}
+entity "Message" as M {
+  * id
+  --
+  text, sent at
+}
+entity "Review" as R {
+  * id
+  --
+  rating 1-5, comment
+  reply
+}
+entity "Notification" as N {
+  * id
+  --
+  type, text, read
+}
+entity "Moderation event" as E {
+  * id
+  --
+  subject, outcome, reasons
+}
+
+U "1" -- "0..*" L : sells
+U "1" -- "0..*" O : places
+L "1" -- "0..*" O : is ordered in
+L "1" -- "0..*" I : changes
+O "1" -- "0..*" M : discussed in
+O "1" -- "0..2" R : evaluated by
+U "1" -- "0..*" N : receives
+L "1" -- "0..*" E : checked in
+@enduml

@@ -30,3 +30,5 @@ build usecase UseCase_PlaceWholesaleOrder_Obrijan_Filip_FAF232.docx
 (cd "$WORK/usecase" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/UseCase_PlaceWholesaleOrder_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
 build requirements Requirements_Prioritisation_Traceability_AgroHub_Obrijan_Filip_FAF232.docx
 (cd "$WORK/requirements" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/Requirements_Prioritisation_Traceability_AgroHub_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
+build srsfull SRS_Complete_AgroHub_Obrijan_Filip_FAF232.docx
+(cd "$WORK/srsfull" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/SRS_Complete_AgroHub_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
