@@ -9,3 +9,4 @@ client/tsconfig.node.tsbuildinfo
 server/uploads/
 .DS_Store
 npm-debug.log*
+__pycache__/
