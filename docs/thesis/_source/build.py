@@ -23,6 +23,11 @@ elif MODE == 'usecase':
     import usecase_content
     C.CH1 = usecase_content.BLOCKS
     C.REFS.update(usecase_content.REFS)
+elif MODE == 'requirements':
+    import requirements_content
+    C.CH1 = requirements_content.BLOCKS
+    C.ABBREVIATIONS = requirements_content.ABBREVIATIONS
+    C.REFS.update(requirements_content.REFS)
 elif MODE == 'proposal':
     import proposal_content
     C.CH1 = proposal_content.BLOCKS
@@ -90,6 +95,9 @@ if MODE in ('srs', 'nfr'):
 elif MODE == 'review':
     set_text(para_of(els[6]), review_content.TITLE)
     set_text(para_of(els[10]), review_content.SUBTITLE)
+elif MODE == 'requirements':
+    set_text(para_of(els[6]), requirements_content.TITLE)
+    set_text(para_of(els[10]), requirements_content.SUBTITLE)
 elif MODE == 'proposal':
     set_text(para_of(els[6]), proposal_content.TITLE)
     set_text(para_of(els[10]), proposal_content.SUBTITLE)
@@ -120,7 +128,7 @@ def placeholder_runs(p, text):
     return r
 placeholder_runs(para_of(els[32]), "[The abstract (300–500 words) will be written after Chapters 1–3 are completed.]")
 placeholder_runs(para_of(els[33]), "Keywords: [5–7 keywords]")
-if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase'):
+if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase', 'requirements'):
     for el in els[29:34]:
         body.remove(el)
 
@@ -365,7 +373,7 @@ for i, (a, desc) in enumerate(C.ABBREVIATIONS):
             for r in p.runs: r.font.size = Pt(12)
 set_grid(t, [3, 14])
 
-if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase'):
+if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase', 'requirements'):
     # ---------- main body ----------
     render(C.CH1)
     h1("REFERENCES")
@@ -503,11 +511,11 @@ def mk_run(text=None, fld=None, instr=None, tab=False):
 
 entries = [(1, "ABSTRACT", None), (1, "LIST OF ABBREVIATIONS", None)] + TOC_ENTRIES
 # abstract heading bookmark
-if MODE not in ('srs', 'nfr', 'review', 'proposal', 'usecase'):
+if MODE not in ('srs', 'nfr', 'review', 'proposal', 'usecase', 'requirements'):
     abs_p = para_of(els[29])
     add_bookmark(abs_p, '_Toc900001')
 # abbreviations heading bookmark is TOC_ENTRIES[0]
-entries = TOC_ENTRIES if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase') else [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
+entries = TOC_ENTRIES if MODE in ('srs', 'nfr', 'review', 'proposal', 'usecase', 'requirements') else [(1, "ABSTRACT", '_Toc900001')] + TOC_ENTRIES
 for k, (lvl, text, bm) in enumerate(entries):
     p = OxmlElement('w:p')
     ppr = OxmlElement('w:pPr'); st = OxmlElement('w:pStyle'); st.set(qn('w:val'), 'TOC%d' % min(lvl, 2)); ppr.append(st)
