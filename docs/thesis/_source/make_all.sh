@@ -23,3 +23,6 @@ build report PBL_Report_Obrijan_Filip_FAF232.docx
 build srs SRS_AgroHub_Obrijan_Filip_FAF232.docx
 build nfr SRS_AgroHub_NonFunctional_Requirements_Obrijan_Filip_FAF232.docx
 build review SRS_Validation_Report_ESL_Mitu_Vladlen_by_Obrijan_Filip.docx
+build proposal Project_Proposal_AgroHub_Obrijan_Filip_FAF232.docx
+# the project proposal is delivered as PDF
+(cd "$WORK/proposal" && soffice --headless --convert-to pdf --outdir "$OUT" "$OUT/Project_Proposal_AgroHub_Obrijan_Filip_FAF232.docx" >/dev/null 2>&1)
